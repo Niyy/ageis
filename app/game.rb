@@ -203,7 +203,7 @@ class Game
     def move2(pawn)
          return if(
             pawn.trail.empty?() || 
-            (state.tick_count - pawn.trail_start_time) % 60 != 0
+            (state.tick_count - pawn.trail_start_time) % 30 != 0
         )       
 
         next_step = pawn.trail.pop()
