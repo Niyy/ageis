@@ -37,6 +37,25 @@ class World_Tree
     end
 
 
+    def pop()
+        return nil if(@branches.empty?())
+        
+        parent = 0
+        @named_lookup.delete(@branches[parent].uid)
+        
+        trade = @branches.length() - 1
+        hold = @branches[trade]
+        @branches[trade] = @branches[parent]
+        @branches[parent] = hold
+
+        pop_val = @branches.pop()
+
+        balance(@branches.length() - 1) if(!@branches.empty?())
+
+        return pop_val
+    end
+
+
     def push(branch)
         @branches << branch
         @named_lookup[branch.uid] = @branches.length() - 1
@@ -71,10 +90,10 @@ class World_Tree
         right_child_val = @branches[right_child]
         left_child_val = @branches[left_child]
 
-        puts "parent: #{parent}"
-        puts "left_child: #{left_child}"
-        puts "right_child: #{right_child}"
-        puts "length: #{@branches.length}"
+#        puts "parent: #{parent}"
+#        puts "left_child: #{left_child}"
+#        puts "right_child: #{right_child}"
+#        puts "length: #{@branches.length}"
 
         return if(left_child >= @branches.length())
 
@@ -96,9 +115,14 @@ class World_Tree
             @named_lookup[@branches[parent].uid] = parent
             @named_lookup[@branches[transfer_pos].uid] = transfer_pos
 
-            puts "#{parent} <-> #{transfer_pos}"
+#            puts "#{parent} <-> #{transfer_pos}"
         end
 
         balance(parent)
+    end
+
+
+    def empty?()
+        return @branches.empty?()
     end
 end
