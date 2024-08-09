@@ -73,6 +73,7 @@ class Game
         }
 
         @world << pawn
+        plant_stone()
 
         @update = true 
         update_tile(@world[pawn.uid], @world[pawn.uid])
@@ -278,21 +279,28 @@ class Game
 
         @update = true
     end
-    
 
-    def assess(dir, og)
+
+    def assess(next_pos, og, dir = [0, 0])
         if(dir.x != 0 && dir.y != 0)
-            return (@tiles.has_key?(dir.uid) && @tiles[dir.uid].ground.nil?() &&
-                @tiles.has_key?([dir.x, og.y]) && @tiles[[dir.x, og.y]].ground.nil?() && 
-                @tiles.has_key?([og.x, dir.y]) && @tiles[[og.x, dir.y]].ground.nil?()
+            return (
+                @tiles.has_key?(next_pos.uid) && 
+                @tiles[next_pos.uid].ground.nil?() &&
+                @tiles.has_key?([next_pos.x, og.y]) && 
+                @tiles[[next_pos.x, og.y]].ground.nil?() && 
+                @tiles.has_key?([og.x, next_pos.y]) && 
+                @tiles[[og.x, next_pos.y]].ground.nil?()
             )
         end
-
-        return (@tiles.has_key?(dir.uid) && @tiles[dir.uid].ground.nil?())
+        
+        return (
+            @tiles.has_key?(next_pos.uid) && 
+            @tiles[next_pos.uid].ground.nil?()
+        )
     end
 
 
-    def trail_add(cur, dif, trail_end, queue, parents)
+    def trail_add(cur, dif, trail_end = {x: 0, y: 0}, queue = [], parents = {})
         next_step = {
             x: cur.x + dif.x, 
             y: cur.y + dif.y, 
@@ -300,12 +308,51 @@ class Game
         }
         step_dist = sqr(trail_end.x - next_step.x) + 
             sqr(trail_end.y - next_step.y) 
-
-        if(next_step.y < @dim && !parents.has_key?(next_step.uid) && 
-            assess(next_step, cur)
+        
+        if(!parents.has_key?(next_step.uid) && 
+            assess(next_step, cur, dif)
         )
             queue << next_step.merge({z: step_dist}) 
             parents[next_step.uid] = cur 
+        end
+    end
+
+
+    def plant_stone()
+        start = [(rand() * @dim).floor(), (rand() * @dim).floor()]
+
+        queue = [{x: start.x, y: start.y, uid: start, z: 0}]
+        visited = {}
+
+        res = DRObject.new(
+            x: start.x,
+            y: start.y,
+            r: 31,
+            g: 46,
+            b: 46,
+            tick: state.tick_count
+        )
+
+        12.times do |i|
+            break if(queue.empty?())
+            
+            cur = queue.sample()
+            visited[cur.uid] = cur
+            queue.delete(id)
+
+            res.x = cur.x
+            res.y = cur.y
+            cp = res.copy()
+
+            @tiles[cur.uid].ground = cp 
+            @world << cp
+
+            trail_add(cur, [0, 1], start, queue, visited)
+            trail_add(cur, [0, -1], start, queue, visited)
+            trail_add(cur, [1, 0], start, queue, visited)
+            trail_add(cur, [-1, 0], start, queue, visited)
+
+            puts queue
         end
     end
 end
