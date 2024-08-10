@@ -1,12 +1,12 @@
 class DRObject
     attr_sprite
-    attr_accessor :x, :y, :z, :w, :h, :r, :g, :b, :a, :primitive_marker
+    attr_accessor :x, :y, :z, :w, :h, :r, :g, :b, :a, :primitive_marker, :type
     attr_reader :uid
 
 
     def initialize(x: 0, y: 0, z: 0, w: 1, h: 1, r: 0, g: 0, b: 0, 
-    consumption: 1, production: 0, max_supply: 10, tick: 0, 
-    primitive_marker: :solid)
+    consumption: 1, production: 0, max_supply: 10, tick: 0,
+    primitive_marker: :solid, type: nil)
         @x = x
         @y = y
         @z = z
@@ -24,6 +24,7 @@ class DRObject
         @tick = tick
         @primitive_marker = primitive_marker
         @uid = get_uid()
+        @type = nil
     end
 
     
@@ -42,21 +43,21 @@ class DRObject
     end
 
 
-    def assess(next_pos, og, dir = [0, 0])
+    def assess(tiles, next_pos, og, dir = [0, 0])
         if(dir.x != 0 && dir.y != 0)
             return (
-                @tiles.has_key?(next_pos.uid) && 
-                @tiles[next_pos.uid].ground.nil?() &&
-                @tiles.has_key?([next_pos.x, og.y]) && 
-                @tiles[[next_pos.x, og.y]].ground.nil?() && 
-                @tiles.has_key?([og.x, next_pos.y]) && 
-                @tiles[[og.x, next_pos.y]].ground.nil?()
+                tiles.has_key?(next_pos.uid) && 
+                tiles[next_pos.uid].ground.nil?() &&
+                tiles.has_key?([next_pos.x, og.y]) && 
+                tiles[[next_pos.x, og.y]].ground.nil?() && 
+                tiles.has_key?([og.x, next_pos.y]) && 
+                tiles[[og.x, next_pos.y]].ground.nil?()
             )
         end
         
         return (
-            @tiles.has_key?(next_pos.uid) && 
-            @tiles[next_pos.uid].ground.nil?()
+            tiles.has_key?(next_pos.uid) && 
+            tiles[next_pos.uid].ground.nil?()
         )
     end
 
@@ -90,7 +91,8 @@ class DRObject
             consumption: @consumption,
             production: @production,
             tick: @tick,
-            primitive_marker: @primitive_marker
+            primitive_marker: @primitive_marker,
+            type: @type
         )
     end
 

@@ -25,6 +25,9 @@ class Game
             selected: nil
         }
         @world = World_Tree.new()
+        @resources = {
+            stone: {}
+        }
         @ui = {
             selector: {
                 x: 0, 
@@ -39,9 +42,10 @@ class Game
         }
         @job_board = {build: {}}
         @tiles = {}
-        @active_pawns = {}
+        @pawns = {}
         @dim = 58
         @tile_dim = 8
+        @tasks = {}
 
         outputs[:view].w = 64
         outputs[:view].h = 64
@@ -59,24 +63,22 @@ class Game
             end
         end
 
-        pawn = {
+        pawn = Actor.new(
             x: 0,
             y: 0,
             w: 1,
             h: 1,
             z: 1,
-            trail_end: nil,
-            trail: [],
-            job: :builder,
-            path: 'sprites/characters/tribesman.png',
-            uid: get_uid()
-        }
+            r: 100,
+            b: 50
+        )
 
         @world << pawn
+        @pawns[pawn.uid] = pawn 
         plant_stone()
 
         @update = true 
-        update_tile(@world[pawn.uid], @world[pawn.uid])
+        update_tile(pawn, pawn)
     end
 
 
@@ -104,9 +106,15 @@ class Game
         @player.x = mouse_x
         @player.y = mouse_y
 
-        if((inputs.mouse.down || inputs.mouse.held))
-                
+        if((inputs.mouse.down || inputs.mouse.held) && mouse_x > -1 && 
+        mouse_x < @dim && mouse_y > -1 && mouse_y < @dim)
             puts "#{@player.x}, #{@player.y}"
+
+            if(inputs.mouse.button_right)
+                @player.selected = nil
+                return
+            end
+                
             if(!@tiles[[mouse_x, mouse_y]].pawn.nil?())
                 @player.selected = @tiles[[mouse_x, mouse_y]].pawn
             elsif(!@player.selected.nil?() && 
@@ -115,26 +123,39 @@ class Game
                 if(inputs.mouse.down)
                     @player.selected.trail_end = [mouse_x, mouse_y]
                     @player.selected.trail_start_time = state.tick_count 
-                    @active_pawns[@player.selected.uid] = @player.selected
+                    @pawns[@player.selected.uid] = @player.selected
 
-                    create_trail(@player.selected, @player.selected.trail_end)
+                    @player.selected.create_trail(@tiles) 
                 end
-            elsif(@tiles[[mouse_x, mouse_y]].ground.nil?())
-                struct = {
-                    x: mouse_x,
-                    y: mouse_y,
-                    w: 1,
-                    h: 1,
-                    z: 0,
-                    uid: get_uid(),
-                    r: 23,
-                    g: 150,
-                    b: 150 
-                }.solid!
-                
+            elsif(@tiles[[mouse_x, mouse_y]].ground.nil?() && 
+            !@tasks.has_key?([mouse_x, mouse_y]))
+#                struct = {
+#                    x: mouse_x,
+#                    y: mouse_y,
+#                    w: 1,
+#                    h: 1,
+#                    z: 0,
+#                    uid: get_uid(),
+#                    r: 23,
+#                    g: 150,
+#                    b: 150 
+#                }.solid!
+                pos = find_resource(@resources, :stone)
+                @tasks[[mouse_x, mouse_y]] = {
+                    in: {
+                        x: pos.x,
+                        y: pos.y,
+                        type: :stone
+                    },
+                    out: {
+                        x: mouse_x, 
+                        y: mouse_y
+                    }
+                }
+               
                 @update = true
-                @tiles[[mouse_x, mouse_y]].ground = struct
-                @world << struct
+#                @tiles[[mouse_x, mouse_y]].ground = struct
+#                @world << struct
             end
         end
 
@@ -144,7 +165,8 @@ class Game
         @ui.selector.x = @player.x
         @ui.selector.y = @player.y
 
-        if(@update)
+#        if(@update)
+            outputs[:view].transient!()
             outputs[:view].w = 64
             outputs[:view].h = 64
             outputs[:view].primitives << @world.branches 
@@ -152,14 +174,16 @@ class Game
             outputs[:view].primitives << @ui.values() 
 
             @update = false
-        end
+#        end
     end
 
 
     def update_active_pawns()
-        @active_pawns.values.map!() do |pawn|
-            pawn.update()
-            
+        @pawns.values.map!() do |pawn|
+            old_pos = {x: pawn.x, y: pawn.y}
+            pawn.update(tick_count, @tasks.values())
+
+            update_tile(pawn, old_pos, spot: :pawn)
             pawn
         end
     end
@@ -247,35 +271,20 @@ class Game
    
         obj.trail.clear()
 
-        puts 'parent'
-        puts parents
-
         if(!found.nil?())
             child = found 
-        
-            puts 'found'
-            puts found
 
             while(parents[child.uid].uid != child.uid)
-                puts '---------------'
-                puts child
-
                 obj.trail << child 
                 child = parents[child.uid]
             end
         end
-
-        puts 'trail'
-        puts obj.trail
     end
 
 
-    def update_tile(obj, new_pos, spot: :pawn)
-        @tiles[[obj.x, obj.y]][spot] = nil
-        @tiles[[new_pos.x, new_pos.y]][spot] = obj
-
-        obj.x = new_pos.x
-        obj.y = new_pos.y
+    def update_tile(obj, old_pos, spot: :pawn)
+        @tiles[[old_pos.x, old_pos.y]][spot] = nil
+        @tiles[[obj.x, obj.y]][spot] = obj
 
         @update = true
     end
@@ -330,7 +339,8 @@ class Game
             r: 31,
             g: 46,
             b: 46,
-            tick: state.tick_count
+            tick: state.tick_count,
+            type: :stone
         )
 
         12.times do |i|
@@ -343,7 +353,11 @@ class Game
             res.x = cur.x
             res.y = cur.y
             cp = res.copy()
+            cp.type = :stone
+            
+            @resources[cp.type] = {} if(!@resources.has_key?(cp.type))
 
+            @resources[cp.type][cp.uid] = cp
             @tiles[cur.uid].ground = cp 
             @world << cp
 
@@ -351,9 +365,21 @@ class Game
             trail_add(cur, [0, -1], start, queue, visited)
             trail_add(cur, [1, 0], start, queue, visited)
             trail_add(cur, [-1, 0], start, queue, visited)
-
-            puts queue
         end
+
+        puts 'all resources'
+        puts @resources
+    end
+
+
+    def find_resource(resources, type)
+        return nil if(!resources.has_key?(type))
+        
+        resources[type].values.each() do |obj|
+            return obj
+        end
+
+        return nil
     end
 end
 

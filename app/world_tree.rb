@@ -1,5 +1,5 @@
 class World_Tree
-    attr_reader :branches
+    attr_reader :branches, :resources
 
 
     def initialize(branches: {})
@@ -13,6 +13,8 @@ class World_Tree
 
 
     def [](key)
+        return nil if(!@named_lookup.has_key?(key))
+
         return @branches[@named_lookup[key]] 
     end
 
@@ -119,6 +121,11 @@ class World_Tree
         end
 
         balance(parent)
+    end
+
+
+    def values()
+        return @branches 
     end
 
 
