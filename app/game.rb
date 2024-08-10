@@ -158,9 +158,9 @@ class Game
 
     def update_active_pawns()
         @active_pawns.values.map!() do |pawn|
-            continue = move2(pawn)
+            pawn.update()
             
-            pawn if(continue)
+            pawn
         end
     end
 

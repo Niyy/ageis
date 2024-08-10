@@ -24,6 +24,16 @@ class DRObject
     end
 
 
+    def reduce_supply()
+        if(@supply > 0)
+            @supply -= 1
+            return 1
+        end
+
+        return 0
+    end
+
+
     def update()
         supply += @production 
     end

@@ -20,15 +20,44 @@ class DRObject
         @production = production
         @da = 255 / @max_supply
         @a = @da * @max_supply
-        @supply = 0
+        @supply = @max_supply
         @tick = tick
         @primitive_marker = primitive_marker
         @uid = get_uid()
     end
 
+    
+    def reduce_supply()
+        if(@supply > 0)
+            @supply -= 1
+            return 1
+        end
+
+        return 0
+    end
+
 
     def update()
         supply += @production 
+    end
+
+
+    def assess(next_pos, og, dir = [0, 0])
+        if(dir.x != 0 && dir.y != 0)
+            return (
+                @tiles.has_key?(next_pos.uid) && 
+                @tiles[next_pos.uid].ground.nil?() &&
+                @tiles.has_key?([next_pos.x, og.y]) && 
+                @tiles[[next_pos.x, og.y]].ground.nil?() && 
+                @tiles.has_key?([og.x, next_pos.y]) && 
+                @tiles[[og.x, next_pos.y]].ground.nil?()
+            )
+        end
+        
+        return (
+            @tiles.has_key?(next_pos.uid) && 
+            @tiles[next_pos.uid].ground.nil?()
+        )
     end
 
 
