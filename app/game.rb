@@ -123,12 +123,11 @@ class Game
                 if(inputs.mouse.down)
                     @player.selected.trail_end = [mouse_x, mouse_y]
                     @player.selected.trail_start_time = state.tick_count 
-                    @pawns[@player.selected.uid] = @player.selected
 
                     @player.selected.create_trail(@tiles) 
                 end
             elsif(@tiles[[mouse_x, mouse_y]].ground.nil?() && 
-            !@tasks.has_key?([mouse_x, mouse_y]))
+            !@tasks.has_key?([mouse_x, mouse_y]) && inputs.mouse.down)
 #                struct = {
 #                    x: mouse_x,
 #                    y: mouse_y,
@@ -149,7 +148,18 @@ class Game
                     },
                     out: {
                         x: mouse_x, 
-                        y: mouse_y
+                        y: mouse_y,
+                        struct: {
+                            x: mouse_x,
+                            y: mouse_y,
+                            w: 1,
+                            h: 1,
+                            z: 0,
+                            uid: get_uid(),
+                            r: 23,
+                            g: 150,
+                            b: 150 
+                        }.solid!
                     }
                 }
                
@@ -181,7 +191,7 @@ class Game
     def update_active_pawns()
         @pawns.values.map!() do |pawn|
             old_pos = {x: pawn.x, y: pawn.y}
-            pawn.update(tick_count, @tasks.values())
+            pawn.update(tick_count, @tasks.values(), tiles)
 
             update_tile(pawn, old_pos, spot: :pawn)
             pawn
@@ -309,6 +319,16 @@ class Game
     end
 
 
+    def accessable(pos)
+        return (
+            @tiles[[pos.x + 1, pos.y]]&.ground.nil?() ||
+            @tiles[[pos.x - 1, pos.y]]&.ground.nil?() ||
+            @tiles[[pos.x, pos.y + 1]]&.ground.nil?() ||
+            @tiles[[pos.x, pos.y - 1]]&.ground.nil?()
+        )
+    end
+
+
     def trail_add(cur, dif, trail_end = {x: 0, y: 0}, queue = [], parents = {})
         next_step = {
             x: cur.x + dif.x, 
@@ -366,9 +386,6 @@ class Game
             trail_add(cur, [1, 0], start, queue, visited)
             trail_add(cur, [-1, 0], start, queue, visited)
         end
-
-        puts 'all resources'
-        puts @resources
     end
 
 
@@ -376,7 +393,7 @@ class Game
         return nil if(!resources.has_key?(type))
         
         resources[type].values.each() do |obj|
-            return obj
+            return obj if(accessable(obj))
         end
 
         return nil
