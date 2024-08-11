@@ -45,7 +45,7 @@ class Game
         @pawns = {}
         @dim = 58
         @tile_dim = 8
-        @tasks = {}
+        @tasks = {assigned: {}, unassigned: {}}
 
         outputs[:view].w = 64
         outputs[:view].h = 64
@@ -75,6 +75,7 @@ class Game
 
         @world << pawn
         @pawns[pawn.uid] = pawn 
+
         plant_stone()
 
         @update = true 
@@ -89,6 +90,43 @@ class Game
         update_active_pawns()
         input()
 
+        outputs[:view].transient!()
+        outputs[:view].w = 64
+        outputs[:view].h = 64
+        outputs[:view].primitives << @world.branches 
+        outputs[:view].primitives << @ui.values() 
+        outputs[:view].primitives << @tasks.unassigned.values.map do |task|
+            if(task.has_key?(:build))
+                struct = task.build.struct
+
+                {
+                    x: struct.x,
+                    y: struct.y,
+                    w: struct.w,
+                    h: struct.h,
+                    r: struct.r,
+                    g: struct.g,
+                    b: struct.b,
+                    a: 50
+                }.solid! 
+            end
+        end
+        outputs[:view].primitives << @tasks.assigned.values.map do |task|
+            if(task&.has_key?(:build))
+                struct = task.build.struct
+
+                {
+                    x: struct.x,
+                    y: struct.y,
+                    w: struct.w,
+                    h: struct.h,
+                    r: struct.r,
+                    g: struct.g,
+                    b: struct.b,
+                    a: 50
+                }.solid! 
+            end
+        end
         outputs.primitives << {
             x: 288, 
             y: 8, 
@@ -127,28 +165,25 @@ class Game
                     @player.selected.create_trail(@tiles) 
                 end
             elsif(@tiles[[mouse_x, mouse_y]].ground.nil?() && 
-            !@tasks.has_key?([mouse_x, mouse_y]) && inputs.mouse.down)
-#                struct = {
-#                    x: mouse_x,
-#                    y: mouse_y,
-#                    w: 1,
-#                    h: 1,
-#                    z: 0,
-#                    uid: get_uid(),
-#                    r: 23,
-#                    g: 150,
-#                    b: 150 
-#                }.solid!
+                  !@tasks.assigned.has_key?([mouse_x, mouse_y]) &&
+                  !@tasks.unassigned.has_key?([mouse_x, mouse_y]))
                 pos = find_resource(@resources, :stone)
-                @tasks[[mouse_x, mouse_y]] = {
-                    in: {
-                        x: pos.x,
-                        y: pos.y,
-                        type: :stone
+                @tasks.unassigned[[mouse_x, mouse_y]] = {
+                    start: :fetch,
+                    uid: [mouse_x, mouse_y],
+                    fetch: {
+                        pos: [pos.x, pos.y],
+                        range: 1,
+                        type: :stone,
+                        hit: false,
+                        nxt: :build
                     },
-                    out: {
-                        x: mouse_x, 
-                        y: mouse_y,
+                    build: {
+                        pos: [mouse_x, mouse_y],
+                        hit: false,
+                        nxt: nil,
+                        range: 1,
+                        spot: :ground,
                         struct: {
                             x: mouse_x,
                             y: mouse_y,
@@ -162,132 +197,23 @@ class Game
                         }.solid!
                     }
                 }
-               
-                @update = true
-#                @tiles[[mouse_x, mouse_y]].ground = struct
-#                @world << struct
+
+                puts "tasks IN: #{@tasks.unassigned[[mouse_x, mouse_y]]}"
             end
         end
 
-        @update = true if(@ui.selector.x != @player.x)
-        @update = true if(@ui.selector.y != @player.y)
-        
         @ui.selector.x = @player.x
         @ui.selector.y = @player.y
-
-#        if(@update)
-            outputs[:view].transient!()
-            outputs[:view].w = 64
-            outputs[:view].h = 64
-            outputs[:view].primitives << @world.branches 
-            outputs[:view].primitives << @ui.values() 
-            outputs[:view].primitives << @ui.values() 
-
-            @update = false
-#        end
     end
 
 
     def update_active_pawns()
         @pawns.values.map!() do |pawn|
             old_pos = {x: pawn.x, y: pawn.y}
-            pawn.update(tick_count, @tasks.values(), tiles)
+            pawn.update(tick_count, @tasks, @tiles, @world)
 
             update_tile(pawn, old_pos, spot: :pawn)
             pawn
-        end
-    end
-
-
-    def move(pawn)
-        return if(
-            pawn.trail_end.nil?() || 
-            (state.tick_count - pawn.trail_start_time) % 120 != 0
-        )
-
-        dx = pawn.trail_end.x - pawn.x
-        dy = pawn.trail_end.y - pawn.y
-
-        dx = dx != 0 ? (dx / dx.abs).round : 0
-        dy = dy != 0 ? (dy / dy.abs).round : 0
-
-        # Need to choose a direction with the lowest deveiation from the original.
-        if(!@tiles[[pawn.x + dx, pawn.y + dy]].ground.nil?())
-            north = [pawn.x, pawn.y + 1]
-            south = [pawn.x, pawn.y - 1]
-            east = [pawn.x + 1, pawn.y]
-            west = [pawn.x - 1, pawn.y]
-        end
-
-        pawn.x += dx
-        pawn.y += dy
-
-        @update = true
-
-        if(pawn.x == pawn.trail_end.x && pawn.y == pawn.trail_end.y)
-            pawn.trail_end = nil 
-            return false
-        end
-
-        @update = true
-
-        return true
-    end
-
-
-    def move2(pawn)
-         return if(
-            pawn.trail.empty?() || 
-            (state.tick_count - pawn.trail_start_time) % 30 != 0
-        )       
-
-        next_step = pawn.trail.pop()
-
-        pawn.x = next_step.x
-        pawn.y = next_step.y
-
-        @update = true
-
-        return false if(pawn.trail.empty?())
-        return true
-    end
-
-
-    def create_trail(obj, trail_end)
-        found = nil 
-        queue = World_Tree.new()
-        parents = {}
-
-        queue << {x: obj.x, y: obj.y, z: 0, uid: [obj.x, obj.y]} 
-        parents[[obj.x, obj.y]] = {x: obj.x, y: obj.y, z: 0, uid: [obj.x, obj.y]}
-
-        while(!queue.empty?())
-            cur = queue.pop()
-
-            if(cur.x == trail_end.x && cur.y == trail_end.y)
-                found = cur
-                break
-            end
-            
-            trail_add(cur, [0, 1], trail_end, queue, parents)
-            trail_add(cur, [0, -1], trail_end, queue, parents)
-            trail_add(cur, [1, 0], trail_end, queue, parents)
-            trail_add(cur, [-1, 0], trail_end, queue, parents)
-            trail_add(cur, [1, 1], trail_end, queue, parents)
-            trail_add(cur, [1, -1], trail_end, queue, parents)
-            trail_add(cur, [-1, 1], trail_end, queue, parents)
-            trail_add(cur, [-1, -1], trail_end, queue, parents)
-        end
-   
-        obj.trail.clear()
-
-        if(!found.nil?())
-            child = found 
-
-            while(parents[child.uid].uid != child.uid)
-                obj.trail << child 
-                child = parents[child.uid]
-            end
         end
     end
 

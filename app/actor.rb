@@ -7,63 +7,93 @@ class Actor < DRObject
 
         @carrying = nil
         @task = nil
+        @task_current = nil
         
-        @trail_end = nil
-        @trail_start_time = 0
-        @trail = []
-
         setup_trail()
     end
 
 
-    def update(tick_count, tasks, tiles)
-        if(@task == nil && !tasks.empty?())
-            @task = tasks.shift()
+    def update(tick_count, tasks, tiles, world)
+#        puts "tasks: #{tasks}" if(!tasks.empty?())
+#        puts "my task: #{@task_current}"
+#        puts "found: #{@found}"
+#        puts "trail_end: #{@trail_end}"
+
+
+        if(@task == nil && !tasks.unassigned.empty?())
+            @task = tasks.unassigned.shift()[1]
+            @task_current = @task.start
+
+            tasks.assigned[[@task.uid]] = @tasks
         end
 
-        do_task(tick_count, tiles)
+        do_task(tick_count, world, tiles)
         create_trail(tiles) if(@found.nil?() && !@trail_end.nil?())
         move(tick_count, tiles)
     end
 
 
-    def do_task(tick_count, tiles)
-        return if(@task.nil?())
+    def do_task(tick_count, world, tiles)
+        return if(@task.nil?() || @task_current.nil?())
+        
+        fetch(tick_count, world, tiles) if(@task_current == :fetch)
+        build(tick_count, world, tiles) if(@task_current == :build)
 
-        puts "carrying: #{@carrying}"
-        puts "trail: #{@trail}"
-
-        if(!@carrying.nil?() && @carrying == @task.in.type && 
-        @trail.empty?())
-                if(!in_range(@task.out, 1))
-                    @trail_end = {x: @task.out.x, y: @task.out.y}
-                    @trail_start_time = tick_count
-
-                   setup_trail() 
-                else
-                    puts 'placing'
-                    tiles[[@task.out.x, @task.out.y]] = @task.out.struct       
-                    @carrying = nil
-                    @task = nil
-                    @trail.clear()
-                end
-        elsif(!in_range(@task.in, 1) && @trail.empty?())
-            @trail_end = {x: @task.in.x, y: @task.in.y}
-            @trail_start_time = tick_count
-
+        if(@task_current.nil?())
             setup_trail()
-        elsif(in_range(@task.in, 1))
-            tiles[[@task.in.x, @task.in.y]].ground.reduce_supply()
-            @carrying = @task.in.type 
-            @trail = []
+            @task = nil
         end
     end
 
 
-    def in_range(pos, range)
+    def fetch(tick_count, world, tiles)
+        cur = @task[@task_current]
+        
+        if(!cur&.hit && !in_range(self, cur.pos, cur.range))
+            setup_trail()
+            @trail_end = cur.pos 
+            @trail_start_time = tick_count 
+            @trail_max_range = cur.range
+            cur.hit = true
+
+            puts "trail_end: #{@trail_end}"
+        end
+
+        if(in_range(self, cur.pos, cur.range))
+            @task_current = cur.nxt
+            tiles[cur.pos].ground.reduce_supply()
+
+            puts "trail: #{@trail}"
+        end
+    end
+
+
+    def build(tick_count, world, tiles)
+        cur = @task[@task_current]
+        
+        if(!cur&.hit && !in_range(self, cur.pos, cur.range))
+            puts 'hit'
+            setup_trail()
+            @trail_end = cur.pos 
+            @trail_start_time = tick_count 
+            @trail_max_range = cur.range
+            cur.hit = true
+        end
+
+        if(in_range(self, cur.pos, cur.range))
+            @task_current = cur.nxt
+            tiles[cur.pos][cur.spot] = cur.struct
+            world[cur.struct.uid] = cur.struct
+            
+            puts "placed tiles: #{tiles[cur.pos]}"
+        end
+    end
+
+
+    def in_range(cur, pos, range)
         return (
-            (@x - pos.x).abs <= range &&
-            (@y - pos.y).abs <= range
+            (cur.x - pos.x).abs <= range &&
+            (cur.y - pos.y).abs <= range
         )
     end
 
@@ -71,7 +101,7 @@ class Actor < DRObject
     def move(tick_count, tiles)
         return if(
             @trail.empty?() || 
-            (tick_count - @trail_start_time) % 10 != 0
+            (tick_count - @trail_start_time) % 5 != 0
         )       
 
         next_step = @trail.pop()
@@ -85,7 +115,7 @@ class Actor < DRObject
 
 
     def trail_add(tiles, cur, dif, trail_end = {x: -1, y: -1}, queue = [], 
-    parents = {})
+                  parents = {})
         next_step = {
             x: cur.x + dif.x, 
             y: cur.y + dif.y, 
@@ -93,18 +123,17 @@ class Actor < DRObject
         }
         step_dist = sqr(trail_end.x - next_step.x) + 
             sqr(trail_end.y - next_step.y) 
-
-        return true if(next_step.x == trail_end.x && next_step.y == trail_end.y)
         
-        if(!@parents.has_key?(next_step.uid) && 
-            (assess(tiles, next_step, cur, dif) || (trail_end.x == cur.x &&
-            trail_end.y == cur.y))
+        if(!parents.has_key?(next_step.uid) && ( 
+                assess(tiles, next_step, cur, dif) || (
+                    trail_end.x == cur.x &&
+                    trail_end.y == cur.y
+                )
+            )
         )
-            @queue << next_step.merge({z: step_dist}) 
-            @parents[next_step.uid] = cur 
+            queue << next_step.merge({z: step_dist}) 
+            parents[next_step.uid] = cur 
         end
-
-        return false
     end
 
 
@@ -112,56 +141,52 @@ class Actor < DRObject
         @queue = World_Tree.new()
         @parents = {}
         @found = nil
+        @trail = []
+        @trail_end = nil
+        @trail_start_time = -1
+        @trail_max_range = 1
     end
 
 
     def create_trail(tiles)
-        found = nil 
-        parents = {}
-
         @queue << {x: @x, y: @y, z: 0, uid: [@x, @y]} 
-        parents[[@x, @y]] = {x: @x, y: @y, z: 0, uid: [@x, @y]}
+        @parents[[@x, @y]] = {x: @x, y: @y, z: 0, uid: [@x, @y]}
+        
+        15.times() do |i|
+            if(!@queue.empty?() && @found.nil?())
+                cur = @queue.pop()
 
-        if(!@queue.empty?() && @found.nil?())
-            cur = @queue.pop()
+                puts "#{$gtk.args.state.tick_count} - #{[cur.x, cur.y]} -> #{@trail_end}: #{in_range(cur, @trail_end, @trail_max_range)}"
 
-            if(cur.x == @trail_end.x && cur.y == @trail_end.y)
-                @found = cur
-                break
+                if(in_range(cur, @trail_end, @trail_max_range))
+                    @found = cur 
+                    break
+                end
+                
+                trail_add(tiles, cur, [0, 1], @trail_end, @queue, @parents)
+                trail_add(tiles, cur, [0, -1], @trail_end, @queue, @parents)
+                trail_add(tiles, cur, [1, 0], @trail_end, @queue, @parents)
+                trail_add(tiles, cur, [-1, 0], @trail_end, @queue, @parents)
+                trail_add(tiles, cur, [1, 1], @trail_end, @queue, @parents)
+                trail_add(tiles, cur, [1, -1], @trail_end, @queue, @parents)
+                trail_add(tiles, cur, [-1, 1], @trail_end, @queue, @parents)
+                trail_add(tiles, cur, [-1, -1], @trail_end, @queue, @parents)
             end
-            
-            fin = trail_add(tiles, cur, [0, 1], @trail_end, @queue, @parents)
-            found = cur if(fin)
-            fin = trail_add(tiles, cur, [0, -1], @trail_end, @queue, @parents)
-            found = cur if(fin)
-            fin = trail_add(tiles, cur, [1, 0], @trail_end, @queue, @parents)
-            found = cur if(fin)
-            fin = trail_add(tiles, cur, [-1, 0], @trail_end, @queue, @parents)
-            found = cur if(fin)
-            fin = trail_add(tiles, cur, [1, 1], @trail_end, @queue, @parents)
-            found = cur if(fin)
-            fin = trail_add(tiles, cur, [1, -1], @trail_end, @queue, @parents)
-            found = cur if(fin)
-            fin = trail_add(tiles, cur, [-1, 1], @trail_end, @queue, @parents)
-            found = cur if(fin)
-            fin = trail_add(tiles, cur, [-1, -1], @trail_end, @queue, @parents)
-            found = cur if(fin)
         end
-   
-        @trail.clear()
 
-        if(!found.nil?())
-            @trail_end = found
-            child = found 
+        if(!@found.nil?())
+            @trail.clear()
+            @trail_end = @found
+            child = @found 
 
-            while(parents[child.uid].uid != child.uid)
+            while(@parents[child.uid].uid != child.uid)
                 @trail << child 
-                child = parents[child.uid]
+                child = @parents[child.uid]
             end
-        end
 
-        puts 'trail'
-        puts @trail
+            puts 'trail'
+            puts @trail
+        end
     end
 
 
