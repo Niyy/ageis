@@ -14,17 +14,13 @@ class Actor < DRObject
 
 
     def update(tick_count, tasks, tiles, world)
-#        puts "tasks: #{tasks}" if(!tasks.empty?())
-#        puts "my task: #{@task_current}"
-#        puts "found: #{@found}"
-#        puts "trail_end: #{@trail_end}"
-
-
         if(@task == nil && !tasks.unassigned.empty?())
             @task = tasks.unassigned.shift()[1]
             @task_current = @task.start
 
-            tasks.assigned[[@task.uid]] = @tasks
+            tasks.assigned[@task.uid] = @task
+
+#            puts "[#{@uid}] new task: #{@task}"
         end
 
         do_task(tick_count, world, tiles)
@@ -56,14 +52,14 @@ class Actor < DRObject
             @trail_max_range = cur.range
             cur.hit = true
 
-            puts "trail_end: #{@trail_end}"
+#            puts "trail_end: #{@trail_end}"
         end
 
         if(in_range(self, cur.pos, cur.range))
             @task_current = cur.nxt
             tiles[cur.pos].ground.reduce_supply()
 
-            puts "trail: #{@trail}"
+#            puts "trail: #{@trail}"
         end
     end
 
@@ -72,7 +68,6 @@ class Actor < DRObject
         cur = @task[@task_current]
         
         if(!cur&.hit && !in_range(self, cur.pos, cur.range))
-            puts 'hit'
             setup_trail()
             @trail_end = cur.pos 
             @trail_start_time = tick_count 
@@ -85,7 +80,7 @@ class Actor < DRObject
             tiles[cur.pos][cur.spot] = cur.struct
             world[cur.struct.uid] = cur.struct
             
-            puts "placed tiles: #{tiles[cur.pos]}"
+#            puts "placed tiles: #{tiles[cur.pos]}"
         end
     end
 
@@ -102,9 +97,25 @@ class Actor < DRObject
         return if(
             @trail.empty?() || 
             (tick_count - @trail_start_time) % 5 != 0
-        )       
+        )
 
         next_step = @trail.pop()
+
+        dir = [
+            next_step.x - @x,
+            next_step.y - @y
+        ]
+
+        dir.x = (dir.x / dir.x.abs())
+        dir.y = (dir.y / dir.y.abs())
+
+        if(!assess(tiles, next_step, self, dir) && !in_range(self, next_step, 1))
+#            puts 'clearing trail.'
+            @trail.clear()
+            @found = nil
+            @queue = World_Tree.new()
+            @parents = {}
+        end
 
         @x = next_step.x
         @y = next_step.y
@@ -156,7 +167,7 @@ class Actor < DRObject
             if(!@queue.empty?() && @found.nil?())
                 cur = @queue.pop()
 
-                puts "#{$gtk.args.state.tick_count} - #{[cur.x, cur.y]} -> #{@trail_end}: #{in_range(cur, @trail_end, @trail_max_range)}"
+#                puts "#{$gtk.args.state.tick_count} - #{[cur.x, cur.y]} -> #{@trail_end}: #{in_range(cur, @trail_end, @trail_max_range)}"
 
                 if(in_range(cur, @trail_end, @trail_max_range))
                     @found = cur 
@@ -184,8 +195,8 @@ class Actor < DRObject
                 child = @parents[child.uid]
             end
 
-            puts 'trail'
-            puts @trail
+#            puts 'trail'
+#            puts @trail
         end
     end
 

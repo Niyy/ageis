@@ -38,7 +38,14 @@ class Game
                 r: 50,
                 b: 50,
                 g: 50
-            }.solid!
+            }.solid!,
+            timer: {
+                x: 0, 
+                y: 4,
+                text: '100',
+                font: 'NotJamPixel5.ttf',
+                size_px: 4
+            }.label!
         }
         @job_board = {build: {}}
         @tiles = {}
@@ -63,23 +70,23 @@ class Game
             end
         end
 
-        pawn = Actor.new(
-            x: 0,
-            y: 0,
-            w: 1,
-            h: 1,
-            z: 1,
-            r: 100,
-            b: 50
-        )
+        3.times do |i|
+            pawn = Actor.new(
+                x: 0 + i,
+                y: 0,
+                w: 1,
+                h: 1,
+                z: 1,
+                r: 100,
+                b: 50
+            )
 
-        @world << pawn
-        @pawns[pawn.uid] = pawn 
+            @world << pawn
+            @pawns[pawn.uid] = pawn 
+            update_tile(pawn, pawn)
+        end
 
         plant_stone()
-
-        @update = true 
-        update_tile(pawn, pawn)
     end
 
 
@@ -112,7 +119,7 @@ class Game
             end
         end
         outputs[:view].primitives << @tasks.assigned.values.map do |task|
-            if(task&.has_key?(:build))
+            if(task.has_key?(:build))
                 struct = task.build.struct
 
                 {
@@ -126,7 +133,7 @@ class Game
                     a: 50
                 }.solid! 
             end
-        end
+        end if(state.tick_count % 30 < 15)
         outputs.primitives << {
             x: 288, 
             y: 8, 
@@ -156,20 +163,23 @@ class Game
             if(!@tiles[[mouse_x, mouse_y]].pawn.nil?())
                 @player.selected = @tiles[[mouse_x, mouse_y]].pawn
             elsif(!@player.selected.nil?() && 
-                  @tiles[[mouse_x, mouse_y]].pawn.nil?())
-
+            @tiles[[mouse_x, mouse_y]].pawn.nil?())
                 if(inputs.mouse.down)
                     @player.selected.trail_end = [mouse_x, mouse_y]
                     @player.selected.trail_start_time = state.tick_count 
 
                     @player.selected.create_trail(@tiles) 
                 end
-            elsif(@tiles[[mouse_x, mouse_y]].ground.nil?() && 
-                  !@tasks.assigned.has_key?([mouse_x, mouse_y]) &&
-                  !@tasks.unassigned.has_key?([mouse_x, mouse_y]))
+            elsif(
+                @tiles[[mouse_x, mouse_y]].ground.nil?() && 
+                !@tasks.assigned.has_key?([mouse_x, mouse_y]) &&
+                !@tasks.unassigned.has_key?([mouse_x, mouse_y]) 
+            )
                 pos = find_resource(@resources, :stone)
+
                 @tasks.unassigned[[mouse_x, mouse_y]] = {
                     start: :fetch,
+                    action: :build,
                     uid: [mouse_x, mouse_y],
                     fetch: {
                         pos: [pos.x, pos.y],
@@ -197,8 +207,6 @@ class Game
                         }.solid!
                     }
                 }
-
-                puts "tasks IN: #{@tasks.unassigned[[mouse_x, mouse_y]]}"
             end
         end
 

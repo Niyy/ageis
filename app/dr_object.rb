@@ -48,16 +48,20 @@ class DRObject
             return (
                 tiles.has_key?(next_pos.uid) && 
                 tiles[next_pos.uid].ground.nil?() &&
+                tiles[next_pos.uid].pawn.nil?() &&
                 tiles.has_key?([next_pos.x, og.y]) && 
                 tiles[[next_pos.x, og.y]].ground.nil?() && 
+                tiles[[next_pos.x, og.y]].pawn.nil?() && 
                 tiles.has_key?([og.x, next_pos.y]) && 
-                tiles[[og.x, next_pos.y]].ground.nil?()
+                tiles[[og.x, next_pos.y]].ground.nil?() &&
+                tiles[[og.x, next_pos.y]].pawn.nil?()
             )
         end
         
         return (
             tiles.has_key?(next_pos.uid) && 
-            tiles[next_pos.uid].ground.nil?()
+            tiles[next_pos.uid].ground.nil?() &&
+            tiles[next_pos.uid].pawn.nil?()
         )
     end
 
