@@ -2,9 +2,11 @@ class Actor < DRObject
     attr_accessor :trail, :trail_end, :trail_start_time
 
 
-    def initialize(**argv)
+    def initialize(faction: -1, raiding: false, **argv)
         super
-
+    
+        @faction = faction
+        @raiding = raiding
         @carrying = nil
         @task = nil
         @task_current = nil
@@ -55,6 +57,7 @@ class Actor < DRObject
 #            puts "trail_end: #{@trail_end}"
         end
 
+
         if(in_range(self, cur.pos, cur.range))
             @task_current = cur.nxt
             tiles[cur.pos].ground.reduce_supply()
@@ -77,6 +80,8 @@ class Actor < DRObject
 
         if(in_range(self, cur.pos, cur.range))
             @task_current = cur.nxt
+
+            cur.struct.faction = @faction
             tiles[cur.pos][cur.spot] = cur.struct
             world[cur.struct.uid] = cur.struct
             

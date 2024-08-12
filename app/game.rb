@@ -19,10 +19,29 @@ class Game
 
 
     def defaults()
+        @invasion_tick = 120
+        @day_cycle = 0
+        @day_step = (255 / 60).floor()
+
         @player = {
             x: 0,
             y: 0,
-            selected: nil
+            selected: nil,
+            tasks: {
+                assigned: {}, 
+                unassigned: {}
+            },
+            flag: {
+                x: 32,
+                y: 32,
+                w: 1,
+                h: 1,
+                z: 10,
+                r: 100,
+                g: 100,
+                b: 0,
+                a: 255
+            }.solid!
         }
         @world = World_Tree.new()
         @resources = {
@@ -41,10 +60,13 @@ class Game
             }.solid!,
             timer: {
                 x: 0, 
-                y: 4,
-                text: '100',
-                font: 'NotJamPixel5.ttf',
-                size_px: 4
+                y: 64,
+                text: "%03d" % @invasion_tick,
+                font: 'fonts/NotJamPixel5.ttf',
+                r: 255,
+                g: 255,
+                b: 255,
+                size_px: 5
             }.label!
         }
         @job_board = {build: {}}
@@ -70,15 +92,28 @@ class Game
             end
         end
 
+        @world << @player.flag
+        spawns = [
+            [@player.flag.x + 1, @player.flag.y],
+            [@player.flag.x - 1, @player.flag.y],
+            [@player.flag.x, @player.flag.y + 1],
+            [@player.flag.x, @player.flag.y - 1]
+        ]
+
+
         3.times do |i|
+            a_spawn = spawns.sample()
+            spawns.delete(a_spawn)
+
             pawn = Actor.new(
-                x: 0 + i,
-                y: 0,
+                x: a_spawn.x,
+                y: a_spawn.y,
                 w: 1,
                 h: 1,
                 z: 1,
-                r: 100,
-                b: 50
+                r: 150,
+                g: 150,
+                b: 0,
             )
 
             @world << pawn
@@ -96,13 +131,14 @@ class Game
         
         update_active_pawns()
         input()
+        overhead()
 
         outputs[:view].transient!()
         outputs[:view].w = 64
         outputs[:view].h = 64
         outputs[:view].primitives << @world.branches 
         outputs[:view].primitives << @ui.values() 
-        outputs[:view].primitives << @tasks.unassigned.values.map do |task|
+        outputs[:view].primitives << player.tasks.unassigned.values.map do |task|
             if(task.has_key?(:build))
                 struct = task.build.struct
 
@@ -118,7 +154,7 @@ class Game
                 }.solid! 
             end
         end
-        outputs[:view].primitives << @tasks.assigned.values.map do |task|
+        outputs[:view].primitives << player.tasks.assigned.values.map do |task|
             if(task.has_key?(:build))
                 struct = task.build.struct
 
@@ -141,6 +177,29 @@ class Game
             h: 704, 
             path: :view
         }.sprite!
+    end
+
+
+    def overhead()
+        @invasion_tick -= 1 if(tick_count % 60 == 0 && @invasion_tick > 0)
+        @day_dir = -1 if(tick_count % 60 == 0 && @day_cycle >= 60)
+        @day_dir = 1 if(tick_count % 60 == 0 && @day_cycle <= 0)
+        @day_cycle += @day_dir if(tick_count % 60 == 0)
+        current_dif = @day_step * @day_cycle
+        text_color = 255 - current_dif
+        @ui.timer.text = "%03d" % @invasion_tick
+        @ui.timer.r = text_color
+        @ui.timer.g = text_color
+        @ui.timer.b = text_color
+        @ui.selector.r = text_color
+        @ui.selector.g = text_color
+        @ui.selector.b = text_color
+
+        outputs[:view].background_color = [
+            current_dif, 
+            current_dif,
+            current_dif
+        ] 
     end
 
 
@@ -172,12 +231,12 @@ class Game
                 end
             elsif(
                 @tiles[[mouse_x, mouse_y]].ground.nil?() && 
-                !@tasks.assigned.has_key?([mouse_x, mouse_y]) &&
-                !@tasks.unassigned.has_key?([mouse_x, mouse_y]) 
+                !player.tasks.assigned.has_key?([mouse_x, mouse_y]) &&
+                !player.tasks.unassigned.has_key?([mouse_x, mouse_y]) 
             )
                 pos = find_resource(@resources, :stone)
 
-                @tasks.unassigned[[mouse_x, mouse_y]] = {
+                player.tasks.unassigned[[mouse_x, mouse_y]] = {
                     start: :fetch,
                     action: :build,
                     uid: [mouse_x, mouse_y],
@@ -218,7 +277,7 @@ class Game
     def update_active_pawns()
         @pawns.values.map!() do |pawn|
             old_pos = {x: pawn.x, y: pawn.y}
-            pawn.update(tick_count, @tasks, @tiles, @world)
+            pawn.update(tick_count, player.tasks, @tiles, @world)
 
             update_tile(pawn, old_pos, spot: :pawn)
             pawn
