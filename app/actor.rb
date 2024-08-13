@@ -325,6 +325,8 @@ class Actor < DRObject
                 @trail << child 
                 child = @parents[child.uid]
             end
+
+            return
         end
 
         if(@queue.empty?() && @found.nil?())
