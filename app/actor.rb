@@ -1,5 +1,5 @@
 class Actor < DRObject
-    attr_accessor :trail, :trail_end, :trail_start_time
+    attr_accessor :trail, :trail_end, :trail_start_time, :idle_ticks
 
 
     def initialize(
@@ -33,10 +33,11 @@ class Actor < DRObject
 
 #            puts "[#{@uid}] new task: #{@task}"
         end
-
+        
+        generate_personal_task(tick_count, world, tiles, tasks)
         do_task(tick_count, world, tiles)
         create_trail(tiles) if(@found.nil?() && !@trail_end.nil?())
-        move(tick_count, tiles)
+        move(tick_count, tiles, world, tasks)
     end
 
 
@@ -45,8 +46,6 @@ class Actor < DRObject
             @idle_ticks += 1
             return
         end
-
-        @idle_ticks = 0
         
         fetch(tick_count, world, tiles) if(@task_current == :fetch)
         build(tick_count, world, tiles) if(@task_current == :build)
@@ -59,23 +58,33 @@ class Actor < DRObject
     end
 
 
-    def generate_personal_task(tick_count, world, tiles)
-        if(@raiding && @idle_count > 120)
-            @task = {
-                start: :hunt,
-                action: :hunt,
-                hunting_ticks: 0,
-                uid: get_uid(),
-                trail_setup: false,
-                search_angle: 0,
-                hunt: {
-                    target: nil,
-                    nxt: :hunt,
-                    range: 10,
-                    applicable_targets: {actors: 0, flag: 0, structs: 0}
-                }
-            }
+    def generate_personal_task(tick_count, world, tiles, tasks)
+        return if(@task)
+
+        if(tasks.assigned[[@x, @y]] || tasks.unassigned[[@x, @y]])
+
+            setup_trail()
+            @trail_end = nil 
+            @trail_start_time = tick_count 
+            @trail_max_range = 0
+            trail_add_single(self, world, tiles, tasks)
         end
+#        if(@raiding && @idle_count > 10)
+#            @task = {
+#                start: :hunt,
+#                action: :hunt,
+#                hunting_ticks: 0,
+#                uid: get_uid(),
+#                trail_setup: false,
+#                search_angle: 0,
+#                hunt: {
+#                    target: nil,
+#                    nxt: :hunt,
+#                    range: 10,
+#                    applicable_targets: {actors: 0, flag: 0, structs: 0}
+#                }
+#            }
+#        end
     end
 
 
@@ -213,7 +222,7 @@ class Actor < DRObject
     end
 
 
-    def move(tick_count, tiles)
+    def move(tick_count, tiles, world, tasks)
         return if(
             @trail.empty?() || 
             (tick_count - @trail_start_time) % 5 != 0
@@ -230,24 +239,29 @@ class Actor < DRObject
         dir.y = (dir.y / dir.y.abs()) if(dir.y != 0)
 
         if(
-            !assess(tiles, next_step, self, dir)
+            !assess(tiles, next_step, self, dir) && @idle_ticks >= 2
         )
-            puts "+++++++++"
-            puts "new_path"
-            puts "next: #{next_step}"
-            puts "now: #{[@x, @y]}"
-            puts "dir: #{dir}"
-            puts "tiles: #{tiles[next_step.uid]}"
-            puts "---------"
             @trail = []
             @trail_end = @task[@task_current].pos
             @found = nil
             @queue = World_Tree.new()
             @parents = {}
             return
+        elsif(!assess(tiles, next_step, self, dir))
+            @trail.push(next_step)
+
+            if(
+                tiles[next_step.uid].pawn == nil 
+            )
+                @idle_ticks += 1             
+            else
+                trail_add_single(self, world, tiles, tasks)
+            end
+
+            return
         end
         
-        @idle_tick = 0
+        @idle_ticks = 0
         @x = next_step.x
         @y = next_step.y
 
@@ -275,6 +289,43 @@ class Actor < DRObject
         )
             queue << next_step.merge({z: step_dist}) 
             parents[next_step.uid] = cur 
+        end
+    end
+
+
+    def trail_add_single(cur, world, tiles, tasks)
+        move_points = [
+            [1, 0],
+            [0, 1],
+            [-1, 0],
+            [0, -1],
+            [1, 1],
+            [-1, 1],
+            [1, -1],
+            [-1, -1]
+        ]
+
+        while(!move_points.empty?())
+            delta = move_points.sample()
+            move_points.delete(delta)
+
+            next_step = {
+                x: cur.x + delta.x, 
+                y: cur.y + delta.y, 
+                uid: [cur.x + delta.x, cur.y + delta.y]
+            } 
+            
+            if((
+                    tasks.unassigned[next_step.uid] == nil &&
+                    tasks.assigned[next_step.uid] == nil && 
+                    assess(tiles, next_step, cur, delta)
+                )
+            )
+                @trail << next_step
+                @trail_end = next_step if(@trail_end == nil)
+                @found = @trail_end if(@found == nil)
+                return
+            end
         end
     end
 
@@ -344,6 +395,11 @@ class Actor < DRObject
         end
 
         return nil
+    end
+
+
+    def wander_for(world, tiles, tasks, ticks) 
+        
     end
 
 

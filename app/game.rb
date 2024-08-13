@@ -10,7 +10,7 @@ end
 
 
 class Game
-    attr_accessor :player, :tiles
+    attr_accessor :player, :tiles, :world, :tasks
     attr_gtk
 
 
