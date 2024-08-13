@@ -2,14 +2,23 @@ class Actor < DRObject
     attr_accessor :trail, :trail_end, :trail_start_time
 
 
-    def initialize(faction: -1, raiding: false, **argv)
+    def initialize(
+        faction: -1, raiding: false, enemies: {'1': 1}, 
+        **argv
+    )
         super
     
         @faction = faction
         @raiding = raiding
         @carrying = nil
+        @idle_ticks = 0
         @task = nil
         @task_current = nil
+        @type = :actor
+
+        # Combat
+        @enemies = enemies
+        @fight_range = 1
         
         setup_trail()
     end
@@ -32,10 +41,16 @@ class Actor < DRObject
 
 
     def do_task(tick_count, world, tiles)
-        return if(@task.nil?() || @task_current.nil?())
+        if(@task.nil?() || @task_current.nil?())
+            @idle_ticks += 1
+            return
+        end
+
+        @idle_ticks = 0
         
         fetch(tick_count, world, tiles) if(@task_current == :fetch)
         build(tick_count, world, tiles) if(@task_current == :build)
+        hunt(tick_count, world, tiles) if(@task_current == :hunt)
 
         if(@task_current.nil?())
             setup_trail()
@@ -44,10 +59,30 @@ class Actor < DRObject
     end
 
 
+    def generate_personal_task(tick_count, world, tiles)
+        if(@raiding && @idle_count > 120)
+            @task = {
+                start: :hunt,
+                action: :hunt,
+                hunting_ticks: 0,
+                uid: get_uid(),
+                trail_setup: false,
+                search_angle: 0,
+                hunt: {
+                    target: nil,
+                    nxt: :hunt,
+                    range: 10,
+                    applicable_targets: {actors: 0, flag: 0, structs: 0}
+                }
+            }
+        end
+    end
+
+
     def fetch(tick_count, world, tiles)
         cur = @task[@task_current]
         
-        if(!cur&.hit && !in_range(self, cur.pos, cur.range))
+        if(!cur&.hit && in_range(self, cur.pos) > cur.range * cur.range)
             setup_trail()
             @trail_end = cur.pos 
             @trail_start_time = tick_count 
@@ -57,8 +92,7 @@ class Actor < DRObject
 #            puts "trail_end: #{@trail_end}"
         end
 
-
-        if(in_range(self, cur.pos, cur.range))
+        if(in_range(self, cur.pos) <= cur.range * cur.range)
             @task_current = cur.nxt
             tiles[cur.pos].ground.reduce_supply()
 
@@ -70,7 +104,7 @@ class Actor < DRObject
     def build(tick_count, world, tiles)
         cur = @task[@task_current]
         
-        if(!cur&.hit && !in_range(self, cur.pos, cur.range))
+        if(!cur&.hit && in_range(self, cur.pos) > cur.range * cur.range)
             setup_trail()
             @trail_end = cur.pos 
             @trail_start_time = tick_count 
@@ -78,7 +112,7 @@ class Actor < DRObject
             cur.hit = true
         end
 
-        if(in_range(self, cur.pos, cur.range))
+        if(in_range(self, cur.pos) <= cur.range * cur.range)
             @task_current = cur.nxt
 
             cur.struct.faction = @faction
@@ -90,11 +124,92 @@ class Actor < DRObject
     end
 
 
-    def in_range(cur, pos, range)
-        return (
-            (cur.x - pos.x).abs <= range &&
-            (cur.y - pos.y).abs <= range
+    def hunt(tick_count, world, tiles)
+        cur = @task[@task_current]
+        if(@task.target.nil?())
+            target = search_in_range(tiles, cur, self) 
+
+            if(target)
+                @task = generate_fight(target)
+            end
+        end
+    end
+
+
+    def close_in(tick_count, world, tiles)
+        cur = @task[@task_current]
+        
+        if(in_range(self, cur.pos) > cur.range * cur.range)
+            setup_trail()
+            @trail_end = cur.pos 
+            @trail_start_time = tick_count 
+            @trail_max_range = cur.range
+            cur.hit = true
+        end
+
+        if(in_range(self, cur.pos) <= cur.range * cur.range)
+            @task_current = cur.nxt
+
+            cur.struct.faction = @faction
+            tiles[cur.pos][cur.spot] = cur.struct
+            world[cur.struct.uid] = cur.struct
+            
+#            puts "placed tiles: #{tiles[cur.pos]}"
+        end
+    end
+
+
+    def generate_fight(target)
+        return {
+            start: :close_in,
+            type: :fight,
+            uid: target.uid,
+            target: target,
+            close_in: {
+                nxt: :fight
+            },
+            fight: {
+                nxt: nil
+            }
+        }
+    end
+
+
+    def search_in_range(tiles, search_range, search_angle, actor)
+        x_lerp = Math.cos(search_angle)
+        y_lerp = Math.sin(search_angle)
+        range = search_range * search_range
+        line_lerp = [actor.x, actor.y]
+
+        while(
+            search_range > ((line_lerp.x * line_lerp.x) + 
+                            (line_lerp.y * line_lerp.y))
         )
+            line_lerp.x += x_lerp 
+            line_lerp.y += y_lerp
+            s_tile = [line_lerp.x.abs, line_lerp.y.abs]
+
+            if(
+                tiles[s_tile] && tiles[s_tile].pawns&.faction && 
+                @enemies[tiles[s_tile].pawns.faction]
+            )
+                return tiles[s_tile].pawns
+            end
+        end
+
+        search_range += 10
+
+        return nil
+    end
+
+
+    def in_range(cur, pos)
+        range = (cur.x - pos.x) * (cur.x - pos.x) +
+                (cur.y - pos.y) * (cur.y - pos.y)
+
+        return 1 if(range == 2)
+
+        return range
     end
 
 
@@ -111,17 +226,28 @@ class Actor < DRObject
             next_step.y - @y
         ]
 
-        dir.x = (dir.x / dir.x.abs())
-        dir.y = (dir.y / dir.y.abs())
+        dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
+        dir.y = (dir.y / dir.y.abs()) if(dir.y != 0)
 
-        if(!assess(tiles, next_step, self, dir) && !in_range(self, next_step, 1))
-#            puts 'clearing trail.'
-            @trail.clear()
+        if(
+            !assess(tiles, next_step, self, dir)
+        )
+            puts "+++++++++"
+            puts "new_path"
+            puts "next: #{next_step}"
+            puts "now: #{[@x, @y]}"
+            puts "dir: #{dir}"
+            puts "tiles: #{tiles[next_step.uid]}"
+            puts "---------"
+            @trail = []
+            @trail_end = @task[@task_current].pos
             @found = nil
             @queue = World_Tree.new()
             @parents = {}
+            return
         end
-
+        
+        @idle_tick = 0
         @x = next_step.x
         @y = next_step.y
 
@@ -174,7 +300,7 @@ class Actor < DRObject
 
 #                puts "#{$gtk.args.state.tick_count} - #{[cur.x, cur.y]} -> #{@trail_end}: #{in_range(cur, @trail_end, @trail_max_range)}"
 
-                if(in_range(cur, @trail_end, @trail_max_range))
+                if(in_range(cur, @trail_end) <= @trail_max_range * @trail_max_range)
                     @found = cur 
                     break
                 end
@@ -199,9 +325,11 @@ class Actor < DRObject
                 @trail << child 
                 child = @parents[child.uid]
             end
+        end
 
-#            puts 'trail'
-#            puts @trail
+        if(@queue.empty?() && @found.nil?())
+            @task = nil
+            @task_current = nil
         end
     end
 
@@ -214,5 +342,15 @@ class Actor < DRObject
         end
 
         return nil
+    end
+
+
+    def serialize()
+        super().merge({
+            trail: @trail, 
+            trail_end: @trail_end, 
+            task: @task,
+            task_current: @task_current
+        })
     end
 end

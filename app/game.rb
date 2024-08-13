@@ -26,6 +26,7 @@ class Game
         @player = {
             x: 0,
             y: 0,
+            faction: 1,
             selected: nil,
             tasks: {
                 assigned: {}, 
@@ -100,6 +101,8 @@ class Game
             [@player.flag.x, @player.flag.y - 1]
         ]
 
+        
+
 
         3.times do |i|
             a_spawn = spawns.sample()
@@ -108,6 +111,8 @@ class Game
             pawn = Actor.new(
                 x: a_spawn.x,
                 y: a_spawn.y,
+                faction: 1,
+                raiding: true,
                 w: 1,
                 h: 1,
                 z: 1,
@@ -118,6 +123,7 @@ class Game
 
             @world << pawn
             @pawns[pawn.uid] = pawn 
+            @pause = false
             update_tile(pawn, pawn)
         end
 
@@ -129,9 +135,9 @@ class Game
         defaults() if(state.tick_count <= 0)
         return if(state.tick_count <= 0)
         
-        update_active_pawns()
+        update_active_pawns() if(!@pause)
         input()
-        overhead()
+        overhead() if(!@pause)
 
         outputs[:view].transient!()
         outputs[:view].w = 64
@@ -210,6 +216,8 @@ class Game
         @player.x = mouse_x
         @player.y = mouse_y
 
+        @pause = !@pause if(inputs.keyboard.key_down.space)
+
         if((inputs.mouse.down || inputs.mouse.held) && mouse_x > -1 && 
         mouse_x < @dim && mouse_y > -1 && mouse_y < @dim)
             puts "#{@player.x}, #{@player.y}"
@@ -221,6 +229,7 @@ class Game
                 
             if(!@tiles[[mouse_x, mouse_y]].pawn.nil?())
                 @player.selected = @tiles[[mouse_x, mouse_y]].pawn
+                puts "selected #{@player.selected}"
             elsif(!@player.selected.nil?() && 
             @tiles[[mouse_x, mouse_y]].pawn.nil?())
                 if(inputs.mouse.down)
@@ -260,6 +269,7 @@ class Game
                             h: 1,
                             z: 0,
                             uid: get_uid(),
+                            type: :struct,
                             r: 23,
                             g: 150,
                             b: 150 
