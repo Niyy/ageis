@@ -67,6 +67,8 @@ class World_Tree
 
 
     def delete(branch)
+        return nil if(!@named_lookup.has_key?(branch.uid))
+
         parent = @named_lookup[branch.uid]
         @named_lookup.delete(branch.uid)
         

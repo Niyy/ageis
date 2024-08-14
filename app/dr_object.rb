@@ -1,11 +1,12 @@
 class DRObject
     attr_sprite
-    attr_accessor :x, :y, :z, :w, :h, :r, :g, :b, :a, :primitive_marker, :type
+    attr_accessor :x, :y, :z, :w, :h, :r, :g, :b, :a, :primitive_marker, :type,
+        :faction, :supply, :enemies
     attr_reader :uid
 
 
     def initialize(x: 0, y: 0, z: 0, w: 1, h: 1, r: 0, g: 0, b: 0, 
-    consumption: 1, production: 0, max_supply: 1, tick: 0,
+    consumption: 1, production: 0, max_supply: 1, tick: 0, faction: -1,
     primitive_marker: :solid, type: nil)
         @x = x
         @y = y
@@ -25,13 +26,14 @@ class DRObject
         @primitive_marker = primitive_marker
         @uid = get_uid()
         @type = nil
+        @faction = faction
     end
 
     
-    def reduce_supply()
+    def reduce_supply(by = 1)
         if(@supply > 0)
-            @supply -= 1
-            return 1
+            @supply -= by
+            return by
         end
 
         return 0

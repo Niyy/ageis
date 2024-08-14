@@ -19,10 +19,10 @@ class Game
 
 
     def defaults()
-        @invasion_tick = 120
+        @invasion_tick = 30
         @day_cycle = 0
         @day_step = (255 / 60).floor()
-
+    
         @player = {
             x: 0,
             y: 0,
@@ -32,7 +32,7 @@ class Game
                 assigned: {}, 
                 unassigned: {}
             },
-            flag: {
+            flag: DRObject.new(
                 x: 32,
                 y: 32,
                 w: 1,
@@ -40,9 +40,8 @@ class Game
                 z: 10,
                 r: 100,
                 g: 100,
-                b: 0,
-                a: 255
-            }.solid!
+                b: 0
+            )
         }
         @world = World_Tree.new()
         @resources = {
@@ -73,7 +72,7 @@ class Game
         @job_board = {build: {}}
         @tiles = {}
         @pawns = {}
-        @dim = 58
+        @dim = 64
         @tile_dim = 8
         @tasks = {assigned: {}, unassigned: {}}
 
@@ -94,12 +93,19 @@ class Game
         end
 
         @world << @player.flag
+        @tiles[[@player.flag.x, @player.flag.y]].ground = @player.flag
         spawns = [
             [@player.flag.x + 1, @player.flag.y],
             [@player.flag.x - 1, @player.flag.y],
             [@player.flag.x, @player.flag.y + 1],
             [@player.flag.x, @player.flag.y - 1]
         ]
+#        spawns = [
+#            [@dim - 1, 0],
+#            [0, @dim - 1],
+#            [@dim - 1, @dim - 1],
+#            [0, 0]
+#        ]
 
         
 
@@ -112,22 +118,34 @@ class Game
                 x: a_spawn.x,
                 y: a_spawn.y,
                 faction: 1,
-                raiding: true,
-                w: 1,
+                raiding: false,
+                w: 1, 
                 h: 1,
                 z: 1,
                 r: 150,
                 g: 150,
-                b: 0,
+                b: 0
             )
 
             @world << pawn
             @pawns[pawn.uid] = pawn 
-            @pause = false
             update_tile(pawn, pawn)
         end
 
+        @pause = true
+        @admin_mode = false
+
         plant_stone()
+
+        @globals = {
+            factions: {},
+            area_owner: @player,
+            area_flag: @player.flag,
+            area_dim: @dim
+        }
+
+        @globals.factions[1.to_s.to_sym] = @player
+        @globals.factions[2.to_s.to_sym] = {tasks: nil} 
     end
 
 
@@ -136,6 +154,7 @@ class Game
         return if(state.tick_count <= 0)
         
         update_active_pawns() if(!@pause)
+        spawn_enemies() if(@invasion_tick <= 0)
         input()
         overhead() if(!@pause)
 
@@ -241,7 +260,8 @@ class Game
             elsif(
                 @tiles[[mouse_x, mouse_y]].ground.nil?() && 
                 !player.tasks.assigned.has_key?([mouse_x, mouse_y]) &&
-                !player.tasks.unassigned.has_key?([mouse_x, mouse_y]) 
+                !player.tasks.unassigned.has_key?([mouse_x, mouse_y]) &&
+                !@admin_mode
             )
                 pos = find_resource(@resources, :stone)
 
@@ -268,14 +288,32 @@ class Game
                             w: 1,
                             h: 1,
                             z: 0,
-                            uid: get_uid(),
                             type: :struct,
+                            faction: @player.faction,
+                            max_supply: 10,
                             r: 23,
                             g: 150,
-                            b: 150 
-                        }.solid!
+                            b: 150
+                        }
                     }
                 }
+            elsif(
+                @tiles[[mouse_x, mouse_y]].ground.nil?() && 
+                @admin_mode
+            )
+                @tiles[[mouse_x, mouse_y]].ground = DRObject.new(
+                    x: mouse_x,
+                    y: mouse_y,
+                    w: 1,
+                    h: 1,
+                    z: 0,
+                    type: :struct,
+                    faction: @player.faction,
+                    r: 23,
+                    g: 150,
+                    b: 150 
+                )
+                @world << @tiles[[mouse_x, mouse_y]].ground
             end
         end
 
@@ -286,8 +324,10 @@ class Game
 
     def update_active_pawns()
         @pawns.values.map!() do |pawn|
+            _player = @globals.factions[pawn.faction.to_s.to_sym]
+
             old_pos = {x: pawn.x, y: pawn.y}
-            pawn.update(tick_count, player.tasks, @tiles, @world)
+            pawn.update(tick_count, _player.tasks, @tiles, @world, @globals)
 
             update_tile(pawn, old_pos, spot: :pawn)
             pawn
@@ -400,6 +440,39 @@ class Game
         end
 
         return nil
+    end
+
+    
+    def spawn_enemies()
+        @invasion_tick = 120
+        spawns = [
+            [@dim - 1, 0],
+            [0, @dim - 1],
+            [@dim - 1, @dim - 1],
+            [0, 0]
+        ]
+        3.times do |i|
+            a_spawn = spawns.sample()
+            spawns.delete(a_spawn)
+
+            pawn = Actor.new(
+                x: a_spawn.x,
+                y: a_spawn.y,
+                faction: 2,
+                raiding: true,
+                enemies: {'1': 1},
+                w: 1, 
+                h: 1,
+                z: 1,
+                r: 150,
+                g: 0,
+                b: 0
+            )
+
+            @world << pawn
+            @pawns[pawn.uid] = pawn 
+            update_tile(pawn, pawn)
+        end
     end
 end
 

@@ -3,7 +3,7 @@ class Actor < DRObject
 
 
     def initialize(
-        faction: -1, raiding: false, enemies: {'1': 1}, 
+        raiding: false, enemies: {}, 
         **argv
     )
         super
@@ -19,29 +19,28 @@ class Actor < DRObject
         # Combat
         @enemies = enemies
         @fight_range = 1
+        @damage = 1
         
         setup_trail()
     end
 
 
-    def update(tick_count, tasks, tiles, world)
-        if(@task == nil && !tasks.unassigned.empty?())
+    def update(tick_count, tasks, tiles, world, globals)
+        if(@task == nil && tasks&.unassigned && !tasks.unassigned.empty?())
             @task = tasks.unassigned.shift()[1]
             @task_current = @task.start
 
             tasks.assigned[@task.uid] = @task
-
-#            puts "[#{@uid}] new task: #{@task}"
         end
         
-        generate_personal_task(tick_count, world, tiles, tasks)
-        do_task(tick_count, world, tiles)
-        create_trail(tiles) if(@found.nil?() && !@trail_end.nil?())
+        generate_personal_task(tick_count, world, tiles, tasks, globals)
+        do_task(tick_count, world, tiles, tasks, globals)
+        create_trail(tiles, tasks) if(@found.nil?() && !@trail_end.nil?())
         move(tick_count, tiles, world, tasks)
     end
 
 
-    def do_task(tick_count, world, tiles)
+    def do_task(tick_count, world, tiles, tasks, globals)
         if(@task.nil?() || @task_current.nil?())
             @idle_ticks += 1
             return
@@ -49,42 +48,41 @@ class Actor < DRObject
         
         fetch(tick_count, world, tiles) if(@task_current == :fetch)
         build(tick_count, world, tiles) if(@task_current == :build)
-        hunt(tick_count, world, tiles) if(@task_current == :hunt)
+        hunt(tick_count, world, tiles, tasks, globals) if(@task_current == :hunt)
+        close_in(tick_count, world, tiles, globals) if(@task_current == :close_in)
+        fight(tick_count, world, tiles, tasks, globals) if(
+            @task_current == :fight
+        )
 
         if(@task_current.nil?())
             setup_trail()
+            tasks.assigned.delete(@task.uid)
             @task = nil
         end
     end
 
 
-    def generate_personal_task(tick_count, world, tiles, tasks)
+    def generate_personal_task(tick_count, world, tiles, tasks, globals)
         return if(@task)
 
-        if(tasks.assigned[[@x, @y]] || tasks.unassigned[[@x, @y]])
-
+        if((tasks&.assigned && tasks.assigned[[@x, @y]]) || 
+           (tasks&.unassigned && tasks.unassigned[[@x, @y]]))
             setup_trail()
             @trail_end = nil 
             @trail_start_time = tick_count 
             @trail_max_range = 0
             trail_add_single(self, world, tiles, tasks)
+            return
         end
-#        if(@raiding && @idle_count > 10)
-#            @task = {
-#                start: :hunt,
-#                action: :hunt,
-#                hunting_ticks: 0,
-#                uid: get_uid(),
-#                trail_setup: false,
-#                search_angle: 0,
-#                hunt: {
-#                    target: nil,
-#                    nxt: :hunt,
-#                    range: 10,
-#                    applicable_targets: {actors: 0, flag: 0, structs: 0}
-#                }
-#            }
-#        end
+        if(
+           @raiding && globals.area_flag && 
+           globals.area_owner.faction != @faction
+        )
+            @task = generate_fight(globals.area_flag)
+            @task_current = @task.start
+
+            return
+        end
     end
 
 
@@ -97,15 +95,11 @@ class Actor < DRObject
             @trail_start_time = tick_count 
             @trail_max_range = cur.range
             cur.hit = true
-
-#            puts "trail_end: #{@trail_end}"
         end
 
         if(in_range(self, cur.pos) <= cur.range * cur.range)
             @task_current = cur.nxt
             tiles[cur.pos].ground.reduce_supply()
-
-#            puts "trail: #{@trail}"
         end
     end
 
@@ -123,62 +117,49 @@ class Actor < DRObject
 
         if(in_range(self, cur.pos) <= cur.range * cur.range)
             @task_current = cur.nxt
+            new_struct = DRObject.new(cur.struct)
 
-            cur.struct.faction = @faction
-            tiles[cur.pos][cur.spot] = cur.struct
-            world[cur.struct.uid] = cur.struct
-            
-#            puts "placed tiles: #{tiles[cur.pos]}"
+            new_struct.faction = @faction
+            tiles[cur.pos][cur.spot] = new_struct
+            world[new_struct.uid] = new_struct
         end
     end
 
 
-    def hunt(tick_count, world, tiles)
+    def hunt(tick_count, world, tiles, tasks, globals)
         cur = @task[@task_current]
-        if(@task.target.nil?())
-            target = search_in_range(tiles, cur, self) 
 
-            if(target)
-                @task = generate_fight(target)
-            end
-        end
-    end
-
-
-    def close_in(tick_count, world, tiles)
-        cur = @task[@task_current]
-        
-        if(in_range(self, cur.pos) > cur.range * cur.range)
-            setup_trail()
-            @trail_end = cur.pos 
+        if(@task.target)
+            setup_trail
+            @trail_end = @task.target 
             @trail_start_time = tick_count 
-            @trail_max_range = cur.range
-            cur.hit = true
+            @trail_max_range = @fight_range
+            @task_current = :close_in
         end
+    end
 
-        if(in_range(self, cur.pos) <= cur.range * cur.range)
-            @task_current = cur.nxt
 
-            cur.struct.faction = @faction
-            tiles[cur.pos][cur.spot] = cur.struct
-            world[cur.struct.uid] = cur.struct
-            
-#            puts "placed tiles: #{tiles[cur.pos]}"
+    def close_in(tick_count, world, tiles, globals)
+        cur = @task[@task_current]
+
+        if(in_range(self, @task.target) <= @fight_range)
+           @task_current = :fight
         end
     end
 
 
     def generate_fight(target)
         return {
-            start: :close_in,
-            type: :fight,
+            start: :hunt,
             uid: target.uid,
-            target: target,
+            target: target, # Overall goal
             close_in: {
                 nxt: :fight
             },
             fight: {
-                nxt: nil
+                nxt: :hunt
+            },
+            hunt: {
             }
         }
     end
@@ -206,7 +187,7 @@ class Actor < DRObject
             end
         end
 
-        search_range += 10
+        search_angle += 10
 
         return nil
     end
@@ -237,8 +218,33 @@ class Actor < DRObject
 
         dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
         dir.y = (dir.y / dir.y.abs()) if(dir.y != 0)
-
+        
         if(
+            !assess(tiles, next_step, self, dir) && 
+            combat_assess(tiles, next_step, self, dir)
+        )
+            tile = tiles[next_step.uid]
+
+            if(!tile.ground.nil?())
+                tile.ground.reduce_supply(@damage)
+
+                if(tile.ground.supply <= 0)
+                    world.delete(tile.ground) 
+                    tile.ground = nil
+                end
+            elsif(!tile.pawn.nil?())
+                tile.pawn.reduce_supply(@damage)
+    
+                if(tile.pawn.supply <= 0)
+                    world.delete(tile.pawn) 
+                    tile.pawn = nil
+                end
+            end
+
+            @trail.push(next_step)
+
+            return
+        elsif(
             !assess(tiles, next_step, self, dir) && @idle_ticks >= 2
         )
             @trail = []
@@ -270,6 +276,27 @@ class Actor < DRObject
     end
 
 
+    def fight(tick_count, world, tiles, tasks, globals)
+        @task.target.reduce_supply(@damage)
+        tile = [@task.target.x, @task.target.y]
+
+        if(@task.target.supply <= 0)
+            world.delete(@task.target) 
+            tiles[tile].ground = nil if(@task.target.type == :struct)
+            tiles[tile].pawn = nil if(@task.target.type == :actor)
+            tasks.assigned.delete(@task.uid) if(tasks)
+            @current_task = nil
+            @task = nil
+            globals.area_flag = nil
+        end
+    end
+
+
+#    def trail_hunting(world, tiles)
+#        world_center = @dim / 2
+#    end
+
+
     def trail_add(tiles, cur, dif, trail_end = {x: -1, y: -1}, queue = [], 
                   parents = {})
         next_step = {
@@ -280,8 +307,12 @@ class Actor < DRObject
         step_dist = sqr(trail_end.x - next_step.x) + 
             sqr(trail_end.y - next_step.y) 
         
-        if(!parents.has_key?(next_step.uid) && ( 
-                assess(tiles, next_step, cur, dif) || (
+        if(
+            !parents.has_key?(next_step.uid) && 
+            (
+                assess(tiles, next_step, cur, dif) || 
+                combat_assess(tiles, next_step, cur, dif) || 
+                (
                     trail_end.x == cur.x &&
                     trail_end.y == cur.y
                 )
@@ -293,7 +324,7 @@ class Actor < DRObject
     end
 
 
-    def trail_add_single(cur, world, tiles, tasks)
+    def trail_add_single(cur, world, tiles, tasks = {})
         move_points = [
             [1, 0],
             [0, 1],
@@ -315,11 +346,10 @@ class Actor < DRObject
                 uid: [cur.x + delta.x, cur.y + delta.y]
             } 
             
-            if((
-                    tasks.unassigned[next_step.uid] == nil &&
-                    tasks.assigned[next_step.uid] == nil && 
-                    assess(tiles, next_step, cur, delta)
-                )
+            if(
+                (tasks == nil || tasks.unassigned[next_step.uid] == nil) &&
+                (tasks == nil || tasks.assigned[next_step.uid] == nil) &&
+                assess(tiles, next_step, cur, delta)
             )
                 @trail << next_step
                 @trail_end = next_step if(@trail_end == nil)
@@ -341,15 +371,13 @@ class Actor < DRObject
     end
 
 
-    def create_trail(tiles)
+    def create_trail(tiles, tasks)
         @queue << {x: @x, y: @y, z: 0, uid: [@x, @y]} 
         @parents[[@x, @y]] = {x: @x, y: @y, z: 0, uid: [@x, @y]}
         
         15.times() do |i|
             if(!@queue.empty?() && @found.nil?())
                 cur = @queue.pop()
-
-#                puts "#{$gtk.args.state.tick_count} - #{[cur.x, cur.y]} -> #{@trail_end}: #{in_range(cur, @trail_end, @trail_max_range)}"
 
                 if(in_range(cur, @trail_end) <= @trail_max_range * @trail_max_range)
                     @found = cur 
@@ -381,9 +409,55 @@ class Actor < DRObject
         end
 
         if(@queue.empty?() && @found.nil?())
+            tasks.assigned.delete(@task.uid) if(tasks && @task)
             @task = nil
             @task_current = nil
         end
+    end
+
+
+    def assess(tiles, next_pos, og, dir = [0, 0])
+        if(dir.x != 0 && dir.y != 0)
+            return (
+                tiles.has_key?(next_pos.uid) && 
+                tiles[next_pos.uid].ground.nil?() &&
+                tiles[next_pos.uid].pawn.nil?() &&
+                tiles.has_key?([next_pos.x, og.y]) && 
+                tiles[[next_pos.x, og.y]].ground.nil?() && 
+                tiles[[next_pos.x, og.y]].pawn.nil?() && 
+                tiles.has_key?([og.x, next_pos.y]) && 
+                tiles[[og.x, next_pos.y]].ground.nil?() &&
+                tiles[[og.x, next_pos.y]].pawn.nil?()
+            )
+        end
+        
+        return (
+            tiles.has_key?(next_pos.uid) && 
+            tiles[next_pos.uid].ground.nil?() &&
+            tiles[next_pos.uid].pawn.nil?()
+        )
+    end
+
+
+    def combat_assess(tiles, next_pos, og, dir = [0, 0])
+        if(dir.x != 0 && dir.y != 0)
+            return (
+                tiles.has_key?(next_pos.uid) && 
+                tiles[next_pos.uid].ground.nil?() &&
+                tiles[next_pos.uid].pawn.nil?() &&
+                tiles.has_key?([next_pos.x, og.y]) && 
+                tiles[[next_pos.x, og.y]].ground.nil?() && 
+                tiles[[next_pos.x, og.y]].pawn.nil?() && 
+                tiles.has_key?([og.x, next_pos.y]) && 
+                tiles[[og.x, next_pos.y]].ground.nil?() &&
+                tiles[[og.x, next_pos.y]].pawn.nil?()
+            )
+        end
+
+        return (
+            @enemies.has_key?(tiles[next_pos.uid]&.ground&.faction.to_s.to_sym) ||
+            @enemies.has_key?(tiles[next_pos.uid]&.pawn&.faction.to_s.to_sym)
+        )
     end
 
 
