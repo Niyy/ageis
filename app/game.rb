@@ -9,30 +9,37 @@ def get_uid()
 end
 
 
-class Game
-    attr_accessor :player, :tiles, :world, :tasks
-    attr_gtk
+class Game < View
+    attr_accessor :player, :tiles, :world, :tasks, :admin_mode, :resources
 
 
-    def initialize()
+    def initialize(args)
+        self.args = args
+
+        defaults()
     end
 
 
     def defaults()
-        @invasion_tick = 30
+        @survived = 0
+        @invasion_temp = 10
+        @invasion_tick = @invasion_temp
         @day_cycle = 0
-        @day_step = (255 / 60).floor()
+        @day_step = (510 / (@invasion_temp)).floor()
+        @load = 10
     
         @player = {
             x: 0,
             y: 0,
             faction: 1,
             selected: nil,
+            selected_structure: :wall,
+            build_interface: Build_Interface.new(),
             tasks: {
                 assigned: {}, 
                 unassigned: {}
             },
-            flag: DRObject.new(
+            flag: Structure.new(
                 x: 32,
                 y: 32,
                 w: 1,
@@ -40,7 +47,9 @@ class Game
                 z: 10,
                 r: 100,
                 g: 100,
-                b: 0
+                b: 0,
+                max_supply: 10,
+                type: :struct
             )
         }
         @world = World_Tree.new()
@@ -48,6 +57,16 @@ class Game
             stone: {}
         }
         @ui = {
+            selected_structure: {
+                x: 32, 
+                y: 64,
+                text: @player.selected_structure.to_s,
+                font: 'fonts/NotJamPixel5.ttf',
+                r: 255,
+                g: 255,
+                b: 255,
+                size_px: 5
+            },
             selector: {
                 x: 0, 
                 y: 0, 
@@ -100,15 +119,6 @@ class Game
             [@player.flag.x, @player.flag.y + 1],
             [@player.flag.x, @player.flag.y - 1]
         ]
-#        spawns = [
-#            [@dim - 1, 0],
-#            [0, @dim - 1],
-#            [@dim - 1, @dim - 1],
-#            [0, 0]
-#        ]
-
-        
-
 
         3.times do |i|
             a_spawn = spawns.sample()
@@ -129,41 +139,73 @@ class Game
 
             @world << pawn
             @pawns[pawn.uid] = pawn 
-            update_tile(pawn, pawn)
+            @tiles[[pawn.x, pawn.y]].pawn = pawn
         end
 
         @pause = true
-        @admin_mode = false
+        @admin_mode = false 
 
         plant_stone()
 
         @globals = {
+            wave: [],
             factions: {},
+            faction_pawn_count: {},
             area_owner: @player,
             area_flag: @player.flag,
             area_dim: @dim
         }
 
-        @globals.factions[1.to_s.to_sym] = @player
-        @globals.factions[2.to_s.to_sym] = {tasks: nil} 
+        @globals.factions[:'1'] = @player
+        @globals.faction_pawn_count[:'1'] = 3
+        @globals.factions[:'2'] = {tasks: nil} 
+        @globals.faction_pawn_count[:'2'] = 0 
+
+        @sound_files = {
+            building: {name: 'building', path: 'sounds/hall_of_kings.mp3'},
+            enemies_at_gate: {name: 'combat', path: 'sounds/ghost_castle.mp3'},
+            effect_place: {name: 'ploop', 
+                           path: 'sounds/effects/place_sound.wav'}
+        }
+        audio[:bgm] = {
+            input: @sound_files.building.path,
+            screenx: 0,
+            screeny: 0,
+            x: 0,
+            y: 0,
+            z: 0,
+            gain: 1.0,
+            pitch: 1.0,
+            looping: true,
+            paused: false,
+            mode: 0
+        }
     end
 
 
     def tick()
-        defaults() if(state.tick_count <= 0)
-        return if(state.tick_count <= 0)
-        
+        if(@load > 0)
+            @load -= 1
+            return nil
+        end
+        if(!@world[@player.flag.uid])
+            audio.clear
+
+            return :start 
+        end
+
         update_active_pawns() if(!@pause)
         spawn_enemies() if(@invasion_tick <= 0)
         input()
-        overhead() if(!@pause)
+        audio()
+        overhead()
 
         outputs[:view].transient!()
         outputs[:view].w = 64
         outputs[:view].h = 64
         outputs[:view].primitives << @world.branches 
         outputs[:view].primitives << @ui.values() 
-        outputs[:view].primitives << player.tasks.unassigned.values.map do |task|
+        outputs[:view].primitives << @player.tasks.unassigned.values.map do |task|
             if(task.has_key?(:build))
                 struct = task.build.struct
 
@@ -202,23 +244,45 @@ class Game
             h: 704, 
             path: :view
         }.sprite!
+
+        if(@player.selected)
+            outputs[:view].debug << {x: @player.selected.x - 1, 
+                                     y: @player.selected.y - 1,
+                                     w: @player.selected.w + 2,
+                                     h: @player.selected.h + 2,
+                                     r: 255,
+                                     g: 255,
+                                     b: 255,
+                                     a: 100}.solid!
+        end
+
+        outputs.primitives
+
+        return nil
     end
 
 
     def overhead()
-        @invasion_tick -= 1 if(tick_count % 60 == 0 && @invasion_tick > 0)
-        @day_dir = -1 if(tick_count % 60 == 0 && @day_cycle >= 60)
-        @day_dir = 1 if(tick_count % 60 == 0 && @day_cycle <= 0)
-        @day_cycle += @day_dir if(tick_count % 60 == 0)
+        if(!@pause)
+            @invasion_tick -= 1 if(tick_count % 60 == 0 && @invasion_tick > 0)
+            @day_dir = -1 if(tick_count % 60 == 0 && @day_cycle >= @invasion_temp / 2)
+            @day_dir = 1 if(tick_count % 60 == 0 && @day_cycle <= 0)
+            @day_cycle += @day_dir if(tick_count % 60 == 0)
+        end
+
         current_dif = @day_step * @day_cycle
         text_color = 255 - current_dif
         @ui.timer.text = "%03d" % @invasion_tick
-        @ui.timer.r = text_color
-        @ui.timer.g = text_color
-        @ui.timer.b = text_color
+        @ui.timer.r = \
+            @ui.selected_structure.r = text_color
+        @ui.timer.g = \
+            @ui.selected_structure.g = text_color
+        @ui.timer.b = \
+            @ui.selected_structure.b = text_color
         @ui.selector.r = text_color
         @ui.selector.g = text_color
         @ui.selector.b = text_color
+        @ui.selected_structure.text = @player.selected_structure.to_s
 
         outputs[:view].background_color = [
             current_dif, 
@@ -231,9 +295,13 @@ class Game
     def input()
         mouse_x = ((inputs.mouse.x - 288) / 11).floor()
         mouse_y = ((inputs.mouse.y - 8) / 11).floor()
+        @tick_on_down = tick_count if(inputs.mouse.down || inputs.mouse.held)
 
         @player.x = mouse_x
         @player.y = mouse_y
+
+        @player.selected_structure = :gate if(inputs.keyboard.key_down.one)
+        @player.selected_structure = :wall if(inputs.keyboard.key_down.two)
 
         @pause = !@pause if(inputs.keyboard.key_down.space)
 
@@ -248,14 +316,13 @@ class Game
                 
             if(!@tiles[[mouse_x, mouse_y]].pawn.nil?())
                 @player.selected = @tiles[[mouse_x, mouse_y]].pawn
-                puts "selected #{@player.selected}"
             elsif(!@player.selected.nil?() && 
             @tiles[[mouse_x, mouse_y]].pawn.nil?())
                 if(inputs.mouse.down)
+                    @player.selected.setup_trail()
                     @player.selected.trail_end = [mouse_x, mouse_y]
                     @player.selected.trail_start_time = state.tick_count 
-
-                    @player.selected.create_trail(@tiles) 
+                    @player.selected.trail_max_range = 1
                 end
             elsif(
                 @tiles[[mouse_x, mouse_y]].ground.nil?() && 
@@ -264,57 +331,66 @@ class Game
                 !@admin_mode
             )
                 pos = find_resource(@resources, :stone)
+                ntask = player.build_interface.build(@player.selected_structure, 
+                                                     mouse_x, 
+                                                     mouse_y,
+                                                     pos,
+                                                     world, 
+                                                     tiles)
 
-                player.tasks.unassigned[[mouse_x, mouse_y]] = {
-                    start: :fetch,
-                    action: :build,
-                    uid: [mouse_x, mouse_y],
-                    fetch: {
-                        pos: [pos.x, pos.y],
-                        range: 1,
-                        type: :stone,
-                        hit: false,
-                        nxt: :build
-                    },
-                    build: {
-                        pos: [mouse_x, mouse_y],
-                        hit: false,
-                        nxt: nil,
-                        range: 1,
-                        spot: :ground,
-                        struct: {
-                            x: mouse_x,
-                            y: mouse_y,
-                            w: 1,
-                            h: 1,
-                            z: 0,
-                            type: :struct,
-                            faction: @player.faction,
-                            max_supply: 10,
-                            r: 23,
-                            g: 150,
-                            b: 150
-                        }
-                    }
-                }
+                if(ntask)
+                    player.tasks.unassigned[[mouse_x, mouse_y]] = ntask
+                end
             elsif(
                 @tiles[[mouse_x, mouse_y]].ground.nil?() && 
                 @admin_mode
             )
-                @tiles[[mouse_x, mouse_y]].ground = DRObject.new(
+                @tiles[[mouse_x, mouse_y]].ground = Structure.new(
                     x: mouse_x,
                     y: mouse_y,
                     w: 1,
                     h: 1,
                     z: 0,
-                    type: :struct,
                     faction: @player.faction,
                     r: 23,
-                    g: 150,
-                    b: 150 
-                )
+                    g: 100,
+                    b: 150,
+                    type: :struct,
+                    passable: true,
+                    name: 'gate'
+                ) if(@player.selected_structure == :gate)
+                @tiles[[mouse_x, mouse_y]].ground = Structure.new(
+                    x: mouse_x,
+                    y: mouse_y,
+                    w: 1,
+                    h: 1,
+                    z: 0,
+                    faction: @player.faction,
+                    r: 23,
+                    g: 200,
+                    b: 150,
+                    type: :struct,
+                    name: 'gate'
+                ) if(@player.selected_structure == :wall)
+
+
                 @world << @tiles[[mouse_x, mouse_y]].ground
             end
+        end
+
+        if(@tick_on_down == tick_count - 1)
+            audio[get_uid] = {
+                input: @sound_files[:effect_place].path,
+                screenx: 0,
+                screeny: 0,
+                x: 0,
+                y: 0,
+                z: 0,
+                gain: 1.0,
+                pitch: 1.0,
+                looping: false,
+                paused: false
+            }
         end
 
         @ui.selector.x = @player.x
@@ -327,7 +403,8 @@ class Game
             _player = @globals.factions[pawn.faction.to_s.to_sym]
 
             old_pos = {x: pawn.x, y: pawn.y}
-            pawn.update(tick_count, _player.tasks, @tiles, @world, @globals)
+            pawn.update(tick_count, _player.tasks, @tiles, @world, @globals, 
+                        audio)
 
             update_tile(pawn, old_pos, spot: :pawn)
             pawn
@@ -336,6 +413,8 @@ class Game
 
 
     def update_tile(obj, old_pos, spot: :pawn)
+        return if(old_pos.x == obj.x && old_pos.y == obj.y)
+
         @tiles[[old_pos.x, old_pos.y]][spot] = nil
         @tiles[[obj.x, obj.y]][spot] = obj
 
@@ -396,18 +475,17 @@ class Game
         queue = [{x: start.x, y: start.y, uid: start, z: 0}]
         visited = {}
 
-        res = DRObject.new(
-            x: start.x,
-            y: start.y,
-            r: 31,
-            g: 46,
-            b: 46,
-            tick: state.tick_count,
-            type: :stone
-        )
-
         12.times do |i|
             break if(queue.empty?())
+            res = Structure.new(
+                x: start.x,
+                y: start.y,
+                r: 31,
+                g: 46,
+                b: 46,
+                tick: state.tick_count,
+                type: :stone
+            )
             
             cur = queue.sample()
             visited[cur.uid] = cur
@@ -415,14 +493,12 @@ class Game
 
             res.x = cur.x
             res.y = cur.y
-            cp = res.copy()
-            cp.type = :stone
             
-            @resources[cp.type] = {} if(!@resources.has_key?(cp.type))
+            @resources[res.type] = {} if(!@resources.has_key?(res.type))
 
-            @resources[cp.type][cp.uid] = cp
-            @tiles[cur.uid].ground = cp 
-            @world << cp
+            @resources[res.type][res.uid] = res
+            @tiles[cur.uid].ground = res
+            @world << res 
 
             trail_add(cur, [0, 1], start, queue, visited)
             trail_add(cur, [0, -1], start, queue, visited)
@@ -444,14 +520,22 @@ class Game
 
     
     def spawn_enemies()
-        @invasion_tick = 120
+        spawn_count = 1 + 3 * @survived
+
+        if(@globals.wave.length <= 0)
+            @survived += 1
+            @invasion_tick = @invasion_temp 
+        end
+       
+        return if(@globals.wave.length >= spawn_count)
+
         spawns = [
             [@dim - 1, 0],
             [0, @dim - 1],
             [@dim - 1, @dim - 1],
             [0, 0]
         ]
-        3.times do |i|
+        (spawn_count - @globals.wave.length).times do |i|
             a_spawn = spawns.sample()
             spawns.delete(a_spawn)
 
@@ -471,16 +555,38 @@ class Game
 
             @world << pawn
             @pawns[pawn.uid] = pawn 
+            @globals.faction_pawn_count[:'2'] += 1
+            @globals.wave << pawn 
             update_tile(pawn, pawn)
         end
+    end
+
+
+    def bgm_transition()
+        
     end
 end
 
 
 def tick(args)
     args.outputs.background_color = [0, 0, 0]
-    $game ||= Game.new()
 
-    $game.args = args
-    $game.tick()
+    $views ||= {game: nil, start: Title.new(args), current: :start, last: nil}
+
+    if($views.current != $views.last)
+        puts "--view change--> #{$views.current}"
+        $view = $views[$views.current]
+        $views.last = $views.current
+    end
+
+    $view.args = args
+    change = $view.tick()
+
+    if(!change.nil?())
+        $views[$views.current] = nil
+        $views.current = change
+        $views.game = Game.new(args) if(change == :game)
+        $views.start = Title.new(args) if(change == :start)
+        $view = $views[$views.current]
+    end
 end

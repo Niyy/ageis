@@ -1,7 +1,7 @@
 class DRObject
     attr_sprite
     attr_accessor :x, :y, :z, :w, :h, :r, :g, :b, :a, :primitive_marker, :type,
-        :faction, :supply, :enemies
+        :faction, :supply, :enemies, :name
     attr_reader :uid
 
 
@@ -25,7 +25,7 @@ class DRObject
         @tick = tick
         @primitive_marker = primitive_marker
         @uid = get_uid()
-        @type = nil
+        @type = type
         @faction = faction
     end
 
@@ -69,7 +69,7 @@ class DRObject
 
 
     def serialize()
-        {x: @x, y: @y, w: @w, h: @h, r: @r, g: @g, b: @b, a: @a, 
+        {uid: @uid, x: @x, y: @y, w: @w, h: @h, r: @r, g: @g, b: @b, a: @a, 
          primitive_marker: @primitive_marker}
     end
 

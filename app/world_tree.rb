@@ -20,6 +20,9 @@ class World_Tree
 
 
     def []=(key, value)
+        puts "adding #{key}"
+        puts "value #{value}"
+
         if(@named_lookup.has_key?(key))
             @branches[@named_lookup[key]] = value
             balance(@named_lookup[key])
@@ -78,7 +81,8 @@ class World_Tree
         @branches[parent] = hold
 
         pop_val = @branches.pop()
-
+    
+        puts "balancing from : #{@branches.length() - 1}"
         balance(@branches.length() - 1)
 
         return pop_val
