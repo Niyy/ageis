@@ -98,10 +98,10 @@ class World_Tree
         right_child_val = @branches[right_child]
         left_child_val = @branches[left_child]
 
-#        puts "parent: #{parent}"
-#        puts "left_child: #{left_child}"
-#        puts "right_child: #{right_child}"
-#        puts "length: #{@branches.length}"
+        puts "parent: #{parent}"
+        puts "left_child: #{left_child}"
+        puts "right_child: #{right_child}"
+        puts "length: #{@branches.length}"
 
         return if(left_child >= @branches.length())
 

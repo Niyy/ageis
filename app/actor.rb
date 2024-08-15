@@ -1,6 +1,6 @@
 class Actor < DRObject
     attr_accessor :trail, :trail_end, :trail_start_time, :idle_ticks, 
-                  :traded_tick
+                  :traded_tick, :task, :trail_max_range, :task_current
 
 
     def initialize(
@@ -30,7 +30,7 @@ class Actor < DRObject
 
 
     def update(tick_count, tasks, tiles, world, globals, audio)
-        if(@task == nil && tasks&.unassigned && !tasks.unassigned.empty?())
+        if(@task == nil && @trail_end == nil && tasks&.unassigned && !tasks.unassigned.empty?())
             @task = tasks.unassigned.shift()[1]
             @task_current = @task.start
 
@@ -39,8 +39,7 @@ class Actor < DRObject
         
         generate_personal_task(tick_count, world, tiles, tasks, globals)
         do_task(tick_count, world, tiles, tasks, globals)
-        create_trail(tiles, tasks) if((!@parents.has_key?(@found) ||
-                                      !@parents.has_key?(@trail_end)) &&
+        create_trail(tiles, tasks) if(@found.nil?() &&
                                       !@trail_end.nil?())
         move(tick_count, tiles, world, tasks, audio)
     end
@@ -84,7 +83,7 @@ class Actor < DRObject
 
             @task = generate_fight(globals.wave.sample())
             @task_current = @task.start
-        end
+        end 
 
         return if(@task)
 
@@ -153,6 +152,7 @@ class Actor < DRObject
     def hunt(tick_count, world, tiles, tasks, globals)
         if(globals.wave.length < 0)
             @task = nil
+            @task_current = nil
             return
         end
 
@@ -179,13 +179,24 @@ class Actor < DRObject
 
         if(in_range(self, @task.target) <= @fight_range)
            @task_current = :fight
+
            return
         end
 
-        if(@task.target.type == :actor && in_range(self, @task.target) < 50 || 
-            (tick_count - @trail_start_time) > 120
-          )
-            @task_current = :hunt
+        if(@task.target.type == :actor)
+            _queue = World_Tree.new()
+
+            trail_add(tiles, self, [0, 1], @task.target, _queue)
+            trail_add(tiles, self, [0, -1], @task.target, _queue)
+            trail_add(tiles, self, [1, 0], @task.target, _queue)
+            trail_add(tiles, self, [-1, 0], @task.target, _queue)
+            trail_add(tiles, self, [1, 1], @task.target, _queue)
+            trail_add(tiles, self, [1, -1], @task.target, _queue)
+            trail_add(tiles, self, [-1, 1], @task.target, _queue)
+            trail_add(tiles, self, [-1, -1], @task.target, _queue)
+
+
+            @trail = [_queue.pop()]
         end
     end
 
@@ -246,12 +257,15 @@ class Actor < DRObject
 
 
     def move(tick_count, tiles, world, tasks, audio)
+        setup_trail if(@trail_end && @task == nil && in_range(self, @trail_end) <= @trail_max_range)
         return if(
             @trail.empty?() || 
             (tick_count - @trail_start_time) % 5 != 0
         )
 
         next_step = @trail.pop()
+
+#        puts "moving #{next_step}"
 
         dir = [
             next_step.x - @x,
@@ -269,7 +283,7 @@ class Actor < DRObject
 
             if(!tile.ground.nil?() && tick_count - @last_hit > @hit_refresh)
                 tile.ground.reduce_supply(@damage)
-                
+               
                 @last_hit = tick_count
                 audio[get_uid] = {
                     input: 'sounds/effects/hit_sound.wav',
@@ -301,7 +315,7 @@ class Actor < DRObject
 
             return
         elsif(
-            !assess(tiles, next_step, self, dir) && @idle_ticks >= 2
+            !assess(tiles, next_step, self, dir)
         )
             @trail = []
             @trail_end = @task[@task_current].pos
@@ -351,14 +365,20 @@ class Actor < DRObject
         tile = [@task.target.x, @task.target.y]
 
         if(@task.target.supply <= 0)
-            puts "killed: #{@task.target}"
+            puts "#{@uid} [#{[@x, @y]}] ->killed: #{@task.target}"
             world.delete(@task.target) 
             tiles[tile].ground = nil if(@task.target.type == :struct)
             tiles[tile].pawn = nil if(@task.target.type == :actor)
+
+#            globals.area_flag = nil if(
+#                globals.area_flag.faction != @faction
+#                @task.target.uid == globals.area_flag.uid 
+#            )
+
             tasks.assigned.delete(@task.uid) if(tasks)
             @current_task = nil
             @task = nil
-            globals.area_flag = nil
+
         end
     end
 
@@ -391,6 +411,7 @@ class Actor < DRObject
         )
             queue << next_step.merge({z: step_dist}) 
             parents[next_step.uid] = cur 
+            return next_step
         end
     end
 

@@ -10,7 +10,8 @@ end
 
 
 class Game < View
-    attr_accessor :player, :tiles, :world, :tasks, :admin_mode, :resources
+    attr_accessor :player, :tiles, :world, :tasks, :admin_mode, :resources, 
+                  :globals, :pawns
 
 
     def initialize(args)
@@ -22,7 +23,7 @@ class Game < View
 
     def defaults()
         @survived = 0
-        @invasion_temp = 10
+        @invasion_temp = 5
         @invasion_tick = @invasion_temp
         @day_cycle = 0
         @day_step = (510 / (@invasion_temp)).floor()
@@ -120,7 +121,7 @@ class Game < View
             [@player.flag.x, @player.flag.y - 1]
         ]
 
-        3.times do |i|
+        1.times do |i|
             a_spawn = spawns.sample()
             spawns.delete(a_spawn)
 
@@ -142,7 +143,7 @@ class Game < View
             @tiles[[pawn.x, pawn.y]].pawn = pawn
         end
 
-        @pause = true
+        @pause = false 
         @admin_mode = false 
 
         plant_stone()
@@ -184,13 +185,20 @@ class Game < View
 
 
     def tick()
+#        puts "Selected: #{@player.selected}" if(state.tick_count % 60 == 0)
+
         if(@load > 0)
             @load -= 1
             return nil
         end
-        if(!@world[@player.flag.uid])
-            audio.clear
 
+        if(@player.flag.supply <= 0 && !@pause)
+            puts "->"
+            puts "player: #{@player.flag}"
+            puts "flag: #{@world[@player.flag.uid]}"
+            audio.clear
+            
+#            @pause = !@pause
             return :start 
         end
 
@@ -263,7 +271,7 @@ class Game < View
 
 
     def overhead()
-        if(!@pause)
+        if(!@pause || @globals.wave.length < 0)
             @invasion_tick -= 1 if(tick_count % 60 == 0 && @invasion_tick > 0)
             @day_dir = -1 if(tick_count % 60 == 0 && @day_cycle >= @invasion_temp / 2)
             @day_dir = 1 if(tick_count % 60 == 0 && @day_cycle <= 0)
@@ -316,13 +324,26 @@ class Game < View
                 
             if(!@tiles[[mouse_x, mouse_y]].pawn.nil?())
                 @player.selected = @tiles[[mouse_x, mouse_y]].pawn
-            elsif(!@player.selected.nil?() && 
-            @tiles[[mouse_x, mouse_y]].pawn.nil?())
+            elsif(
+                  !@player.selected.nil?() && 
+                  @tiles[[mouse_x, mouse_y]].pawn.nil?()
+                 )
                 if(inputs.mouse.down)
                     @player.selected.setup_trail()
                     @player.selected.trail_end = [mouse_x, mouse_y]
                     @player.selected.trail_start_time = state.tick_count 
                     @player.selected.trail_max_range = 1
+                    
+                    if(@player.selected.task)
+                        @player.selected.task.hit = false if(
+                            @player.selected.task.start == :fetch
+                        )
+                        @player.tasks.unassigned[@player.selected.task.uid] = \
+                            @player.selected.task
+                        @player.tasks.assigned.delete(@player.selected.task.uid)
+                        @player.selected.task = nil
+                        @player.selected.task_current = nil
+                    end
                 end
             elsif(
                 @tiles[[mouse_x, mouse_y]].ground.nil?() && 
@@ -399,7 +420,7 @@ class Game < View
 
 
     def update_active_pawns()
-        @pawns.values.map!() do |pawn|
+        @pawns.delete_if do |key, pawn|
             _player = @globals.factions[pawn.faction.to_s.to_sym]
 
             old_pos = {x: pawn.x, y: pawn.y}
@@ -407,8 +428,20 @@ class Game < View
                         audio)
 
             update_tile(pawn, old_pos, spot: :pawn)
-            pawn
+
+            if(pawn.supply <= 0)
+                puts 'pawn killed'
+                @world.delete(pawn)
+                @tiles[[pawn.x, pawn.y]].pawn = nil
+                @globals.faction_pawn_count[pawn.faction.to_s.to_sym] -= 1
+
+                true
+            else
+                false
+            end
         end
+
+        @pawns.compact!()
     end
 
 
@@ -520,7 +553,7 @@ class Game < View
 
     
     def spawn_enemies()
-        spawn_count = 1 + 3 * @survived
+        spawn_count = 1 #+ 3 * @survived
 
         if(@globals.wave.length <= 0)
             @survived += 1
