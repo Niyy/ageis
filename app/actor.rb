@@ -30,13 +30,6 @@ class Actor < DRObject
 
 
     def update(tick_count, tasks, tiles, world, globals, audio)
-        if(@task == nil && @trail_end == nil && tasks&.unassigned && !tasks.unassigned.empty?())
-            @task = tasks.unassigned.shift()[1]
-            @task_current = @task.start
-
-            tasks.assigned[@task.uid] = @task
-        end
-        
         generate_personal_task(tick_count, world, tiles, tasks, globals)
         do_task(tick_count, world, tiles, tasks, globals)
         create_trail(tiles, tasks) if(@found.nil?() &&
@@ -80,12 +73,22 @@ class Actor < DRObject
                 tasks.assigned.delete(@task.uid)
                 tasks.unassigned[@task.uid] = @task
             end
-
+            
             @task = generate_fight(globals.wave.sample())
             @task_current = @task.start
+
+            return
         end 
 
         return if(@task)
+
+        if(@task == nil && @trail_end == nil && tasks&.unassigned && !tasks.unassigned.empty?())
+            @task = tasks.unassigned.shift()[1]
+            @task_current = @task.start
+
+            tasks.assigned[@task.uid] = @task
+            return
+        end
 
         if((tasks&.assigned && tasks.assigned[[@x, @y]]) || 
            (tasks&.unassigned && tasks.unassigned[[@x, @y]]))
@@ -304,11 +307,6 @@ class Actor < DRObject
                 end
             elsif(!tile.pawn.nil?())
                 tile.pawn.reduce_supply(@damage)
-    
-                if(tile.pawn.supply <= 0)
-                    world.delete(tile.pawn) 
-                    tile.pawn = nil
-                end
             end
 
             @trail.push(next_step)

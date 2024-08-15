@@ -271,7 +271,7 @@ class Game < View
 
 
     def overhead()
-        if(!@pause || @globals.wave.length < 0)
+        if(!@pause || @globals.=wave.length < 0)
             @invasion_tick -= 1 if(tick_count % 60 == 0 && @invasion_tick > 0)
             @day_dir = -1 if(tick_count % 60 == 0 && @day_cycle >= @invasion_temp / 2)
             @day_dir = 1 if(tick_count % 60 == 0 && @day_cycle <= 0)
@@ -434,6 +434,7 @@ class Game < View
                 @world.delete(pawn)
                 @tiles[[pawn.x, pawn.y]].pawn = nil
                 @globals.faction_pawn_count[pawn.faction.to_s.to_sym] -= 1
+                @globals.wave.delete(pawn.uid)
 
                 true
             else
@@ -553,7 +554,7 @@ class Game < View
 
     
     def spawn_enemies()
-        spawn_count = 1 #+ 3 * @survived
+        spawn_count = 1 + 1 * @survived
 
         if(@globals.wave.length <= 0)
             @survived += 1
@@ -589,7 +590,7 @@ class Game < View
             @world << pawn
             @pawns[pawn.uid] = pawn 
             @globals.faction_pawn_count[:'2'] += 1
-            @globals.wave << pawn 
+            @globals.wave[pawn.uid] = pawn 
             update_tile(pawn, pawn)
         end
     end
