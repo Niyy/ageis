@@ -1,5 +1,5 @@
 class World_Tree
-    attr_reader :branches, :resources
+    attr_reader :branches, :resources, :named_lookup
 
 
     def initialize(branches: {})
@@ -20,25 +20,20 @@ class World_Tree
 
 
     def []=(key, value)
-        puts "adding #{key}"
-        puts "value #{value}"
-
         if(@named_lookup.has_key?(key))
-            @branches[@named_lookup[key]] = value
-            balance(@named_lookup[key])
-        else
-            push(value)
+            delete(value)
         end
+
+        push(value)
     end
 
 
     def <<(branch)
         if(@named_lookup.has_key?(branch.uid))
-            @branches[@named_lookup[branch.uid]] = branch 
-            balance(@named_lookup[branch.uid])
-        else
-            push(branch)
+            delete(branch)
         end
+
+        push(branch)
     end
 
 
@@ -46,15 +41,15 @@ class World_Tree
         return nil if(@branches.empty?())
         
         parent = 0
-        @named_lookup.delete(@branches[parent].uid)
-        
         trade = @branches.length() - 1
         hold = @branches[trade]
         @branches[trade] = @branches[parent]
         @branches[parent] = hold
+        @named_lookup[hold.uid] = parent
 
         pop_val = @branches.pop()
-
+        @named_lookup.delete(pop_val.uid)
+    
         balance(@branches.length() - 1) if(!@branches.empty?())
 
         return pop_val
@@ -73,17 +68,21 @@ class World_Tree
         return nil if(!@named_lookup.has_key?(branch.uid))
 
         parent = @named_lookup[branch.uid]
-        @named_lookup.delete(branch.uid)
-        
         trade = @branches.length() - 1
         hold = @branches[trade]
+
+        printy()
+
         @branches[trade] = @branches[parent]
         @branches[parent] = hold
+        @named_lookup[hold.uid] = parent
+
+        printy()
 
         pop_val = @branches.pop()
+        @named_lookup.delete(pop_val.uid)
     
-        puts "balancing from : #{@branches.length() - 1}"
-        balance(@branches.length() - 1)
+        balance(@branches.length() - 1) if(!@branches.empty?())
 
         return pop_val
     end
@@ -97,11 +96,6 @@ class World_Tree
         left_child = right_child - 1
         right_child_val = @branches[right_child]
         left_child_val = @branches[left_child]
-
-        puts "parent: #{parent}"
-        puts "left_child: #{left_child}"
-        puts "right_child: #{right_child}"
-        puts "length: #{@branches.length}"
 
         return if(left_child >= @branches.length())
 
@@ -127,6 +121,15 @@ class World_Tree
         end
 
         balance(parent)
+    end
+
+
+    def printy()
+        puts "------------\n"
+
+        @branches.each do |branch|
+            puts "->#{branch}\n"
+        end
     end
 
 

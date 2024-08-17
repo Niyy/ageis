@@ -14,6 +14,7 @@ class Build_Interface
         return {
             start: :fetch,
             action: :build,
+            building: :wall,
             uid: [mouse_x, mouse_y],
             fetch: {
                 pos: [pos.x, pos.y],
@@ -53,6 +54,7 @@ class Build_Interface
         @current_selection = {
             start: :fetch,
             action: :build,
+            building: :gate,
             uid: [mouse_x, mouse_y],
             fetch: {
                 pos: [pos.x, pos.y],

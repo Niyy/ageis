@@ -29,8 +29,8 @@ class Actor < DRObject
     end
 
 
-    def update(tick_count, tasks, tiles, world, globals, audio)
-        generate_personal_task(tick_count, world, tiles, tasks, globals)
+    def update(tick_count, tasks, tiles, world, globals, audio, player)
+        generate_personal_task(tick_count, world, tiles, tasks, globals, player)
         do_task(tick_count, world, tiles, tasks, globals)
         create_trail(tiles, tasks) if(@found.nil?() &&
                                       !@trail_end.nil?())
@@ -62,7 +62,21 @@ class Actor < DRObject
     end
 
 
-    def generate_personal_task(tick_count, world, tiles, tasks, globals)
+    def generate_personal_task(tick_count, world, tiles, tasks, globals, player)
+        if(
+            @task == nil && 
+            @trail_end == nil && 
+            !tasks.nil?() && 
+            tasks.has_key?(:unassigned) && 
+            !tasks.unassigned.empty?()
+        )
+            @task = tasks.unassigned.shift()[1]
+            @task_current = @task.start
+
+            tasks.assigned[@task.uid] = @task
+            return
+        end
+
         if(
            globals.wave.length > 0 && 
            globals.area_owner.faction == @faction &&
@@ -71,24 +85,41 @@ class Actor < DRObject
           )
             if(!@task.nil?())
                 tasks.assigned.delete(@task.uid)
-                tasks.unassigned[@task.uid] = @task
+                tasks.unassigned[@task.uid] = player.build_interface.build(
+                    @task.building,
+                    @task.uid.x,
+                    @task.uid.y,
+                    @task[:fetch].pos,
+                    world,
+                    tiles
+                ) if(@task.action == :build)
             end
             
-            @task = generate_fight(globals.wave.sample())
+            @task = generate_fight(globals.wave.values.sample())
             @task_current = @task.start
 
             return
-        end 
+        elsif(
+            globals.wave.length <= 0 && 
+            globals.area_owner.faction == @faction &&
+            (
+                (
+                    !@task.nil?() &&
+                    @task.has_key?(:fight)
+                ) ||
+                (
+                    @task.nil?() &&
+                    !@task_current.nil?() &&
+                    @task_current == (:fight)
+                )
+            )
+        )
+            @task = nil
+            @task_current = nil
+            setup_trail()
+        end
 
         return if(@task)
-
-        if(@task == nil && @trail_end == nil && tasks&.unassigned && !tasks.unassigned.empty?())
-            @task = tasks.unassigned.shift()[1]
-            @task_current = @task.start
-
-            tasks.assigned[@task.uid] = @task
-            return
-        end
 
         if((tasks&.assigned && tasks.assigned[[@x, @y]]) || 
            (tasks&.unassigned && tasks.unassigned[[@x, @y]]))
@@ -268,8 +299,6 @@ class Actor < DRObject
 
         next_step = @trail.pop()
 
-#        puts "moving #{next_step}"
-
         dir = [
             next_step.x - @x,
             next_step.y - @y
@@ -363,7 +392,6 @@ class Actor < DRObject
         tile = [@task.target.x, @task.target.y]
 
         if(@task.target.supply <= 0)
-            puts "#{@uid} [#{[@x, @y]}] ->killed: #{@task.target}"
             world.delete(@task.target) 
             tiles[tile].ground = nil if(@task.target.type == :struct)
             tiles[tile].pawn = nil if(@task.target.type == :actor)

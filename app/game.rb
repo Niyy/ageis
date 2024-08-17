@@ -5,7 +5,7 @@ def get_uid()
     out_uid = $uid_file
     $uid_file += 1
 
-    return out_uid 
+    return out_uid.to_s
 end
 
 
@@ -23,7 +23,7 @@ class Game < View
 
     def defaults()
         @survived = 0
-        @invasion_temp = 5
+        @invasion_temp = 4
         @invasion_tick = @invasion_temp
         @day_cycle = 0
         @day_step = (510 / (@invasion_temp)).floor()
@@ -121,7 +121,7 @@ class Game < View
             [@player.flag.x, @player.flag.y - 1]
         ]
 
-        1.times do |i|
+        4.times do |i|
             a_spawn = spawns.sample()
             spawns.delete(a_spawn)
 
@@ -149,7 +149,7 @@ class Game < View
         plant_stone()
 
         @globals = {
-            wave: [],
+            wave: {},
             factions: {},
             faction_pawn_count: {},
             area_owner: @player,
@@ -199,7 +199,7 @@ class Game < View
             audio.clear
             
 #            @pause = !@pause
-            return :start 
+            return :title
         end
 
         update_active_pawns() if(!@pause)
@@ -271,11 +271,13 @@ class Game < View
 
 
     def overhead()
-        if(!@pause || @globals.=wave.length < 0)
+        if(!@pause && @globals.wave.length <= 0)
             @invasion_tick -= 1 if(tick_count % 60 == 0 && @invasion_tick > 0)
             @day_dir = -1 if(tick_count % 60 == 0 && @day_cycle >= @invasion_temp / 2)
             @day_dir = 1 if(tick_count % 60 == 0 && @day_cycle <= 0)
             @day_cycle += @day_dir if(tick_count % 60 == 0)
+
+            puts @day_cycle
         end
 
         current_dif = @day_step * @day_cycle
@@ -425,7 +427,7 @@ class Game < View
 
             old_pos = {x: pawn.x, y: pawn.y}
             pawn.update(tick_count, _player.tasks, @tiles, @world, @globals, 
-                        audio)
+                        audio, player)
 
             update_tile(pawn, old_pos, spot: :pawn)
 
@@ -570,6 +572,8 @@ class Game < View
             [0, 0]
         ]
         (spawn_count - @globals.wave.length).times do |i|
+            break if(spawns.empty?())
+
             a_spawn = spawns.sample()
             spawns.delete(a_spawn)
 
@@ -586,12 +590,15 @@ class Game < View
                 g: 0,
                 b: 0
             )
-
-            @world << pawn
-            @pawns[pawn.uid] = pawn 
-            @globals.faction_pawn_count[:'2'] += 1
-            @globals.wave[pawn.uid] = pawn 
-            update_tile(pawn, pawn)
+            
+            if(@tiles[a_spawn].pawn.nil?() && @tiles[a_spawn].pawn.nil?())
+                @world << pawn
+                @pawns[pawn.uid] = pawn 
+                @globals.faction_pawn_count[:'2'] += 1
+                @globals.wave[pawn.uid] = pawn 
+                @tiles[a_spawn].pawn = pawn
+                update_tile(pawn, pawn)
+            end
         end
     end
 
@@ -605,7 +612,17 @@ end
 def tick(args)
     args.outputs.background_color = [0, 0, 0]
 
-    $views ||= {game: nil, start: Title.new(args), current: :start, last: nil}
+    $views ||= {
+        game: nil, 
+        title: Title.new(args), 
+        current: :title, 
+        last: nil,
+        debuggery: nil
+    }
+
+    if($views.current == :debuggery)
+        $views.debuggery ||= Debuggery.new(args)
+    end
 
     if($views.current != $views.last)
         puts "--view change--> #{$views.current}"
@@ -620,7 +637,7 @@ def tick(args)
         $views[$views.current] = nil
         $views.current = change
         $views.game = Game.new(args) if(change == :game)
-        $views.start = Title.new(args) if(change == :start)
+        $views.start = Title.new(args) if(change == :title)
         $view = $views[$views.current]
     end
 end
