@@ -23,7 +23,7 @@ class Game < View
 
     def defaults()
         @survived = 0
-        @invasion_temp = 4
+        @invasion_temp = 34
         @invasion_tick = @invasion_temp
         @day_cycle = 0
         @day_step = (510 / (@invasion_temp)).floor()
@@ -49,6 +49,7 @@ class Game < View
                 r: 100,
                 g: 100,
                 b: 0,
+                faction: 1,
                 max_supply: 10,
                 type: :struct
             )
@@ -271,7 +272,7 @@ class Game < View
 
 
     def overhead()
-        if(!@pause && @globals.wave.length <= 0)
+        if(!@pause && @globals.wave.values.length <= 0)
             @invasion_tick -= 1 if(tick_count % 60 == 0 && @invasion_tick > 0)
             @day_dir = -1 if(tick_count % 60 == 0 && @day_cycle >= @invasion_temp / 2)
             @day_dir = 1 if(tick_count % 60 == 0 && @day_cycle <= 0)
@@ -433,10 +434,10 @@ class Game < View
 
             if(pawn.supply <= 0)
                 puts 'pawn killed'
-                @world.delete(pawn)
                 @tiles[[pawn.x, pawn.y]].pawn = nil
                 @globals.faction_pawn_count[pawn.faction.to_s.to_sym] -= 1
                 @globals.wave.delete(pawn.uid)
+                @world.delete(pawn)
 
                 true
             else
@@ -558,12 +559,12 @@ class Game < View
     def spawn_enemies()
         spawn_count = 1 + 1 * @survived
 
-        if(@globals.wave.length <= 0)
+        if(@globals.wave.values.length <= 0)
             @survived += 1
             @invasion_tick = @invasion_temp 
         end
        
-        return if(@globals.wave.length >= spawn_count)
+        return if(@globals.wave.values.length >= spawn_count)
 
         spawns = [
             [@dim - 1, 0],
@@ -637,7 +638,7 @@ def tick(args)
         $views[$views.current] = nil
         $views.current = change
         $views.game = Game.new(args) if(change == :game)
-        $views.start = Title.new(args) if(change == :title)
+        $views.title = Title.new(args) if(change == :title)
         $view = $views[$views.current]
     end
 end

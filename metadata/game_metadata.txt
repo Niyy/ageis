@@ -1,9 +1,9 @@
 # Remove the pound sign and leading space for the properties below before publishing your game.
- devid=austinmeyer
+ devid=niyy
  devtitle=ageis
  gameid=ageis
  gametitle=Ageis
- version=0.1
+ version=0.15
  icon=metadata/icon.png
 
 # === Flags available at all licensing tiers ===

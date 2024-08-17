@@ -94,7 +94,7 @@ class Actor < DRObject
                     tiles
                 ) if(@task.action == :build)
             end
-            
+
             @task = generate_fight(globals.wave.values.sample())
             @task_current = @task.start
 
