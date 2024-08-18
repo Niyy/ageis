@@ -94,7 +94,7 @@ class Actor < DRObject
                     tiles
                 ) if(@task.action == :build)
             end
-
+            
             @task = generate_fight(globals.wave.values.sample())
             @task_current = @task.start
 
@@ -122,7 +122,9 @@ class Actor < DRObject
         return if(@task)
 
         if((tasks&.assigned && tasks.assigned[[@x, @y]]) || 
-           (tasks&.unassigned && tasks.unassigned[[@x, @y]]))
+           (tasks&.unassigned && tasks.unassigned[[@x, @y]]) ||
+           !tiles[[@x, @y]].ground.nil?()
+        )
             setup_trail()
             @trail_end = nil 
             @trail_start_time = tick_count 
@@ -307,6 +309,20 @@ class Actor < DRObject
         dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
         dir.y = (dir.y / dir.y.abs()) if(dir.y != 0)
         
+        return if(fight_blocker(tiles, tick_count, world, next_step, dir))
+        return if(init_repath(tiles, next_step, dir, tick_count))
+        return if(move_around(tiles, next_step, tick_count, dir))
+       
+        @idle_ticks = 0
+        @x = next_step.x
+        @y = next_step.y
+
+        return false if(@trail.empty?())
+        return true
+    end
+
+    
+    def fight_blocker(tiles, tick_count, world, next_step, dir)
         if(
             !assess(tiles, next_step, self, dir) && 
             combat_assess(tiles, next_step, self, dir)
@@ -334,43 +350,60 @@ class Actor < DRObject
                     world.delete(tile.ground) 
                     tile.ground = nil
                 end
-            elsif(!tile.pawn.nil?())
-                tile.pawn.reduce_supply(@damage)
+
+
+                @trail.push(next_step)
             end
 
-            @trail.push(next_step)
+            return true
+        end
 
-            return
-        elsif(
-            !assess(tiles, next_step, self, dir)
+        return false
+    end
+
+
+    def init_repath(tiles, next_step, dir, tick_count)
+        blocker = tiles[next_step.uid].pawn
+
+        if(
+            !assess(tiles, next_step, self, dir) &&
+            !blocker.nil?() && 
+            blocker.faction != @faction &&
+            blocker.traded_tick >= tick_count
         )
             @trail = []
             @trail_end = @task[@task_current].pos
             @found = nil
             @queue = World_Tree.new()
             @parents = {}
-            return
-        elsif(!assess(tiles, next_step, self, dir))
-            if(tiles[next_step.uid].pawn == nil)
-                @trail.push(next_step)
-                @idle_ticks += 1             
-                return
-            elsif(!tiles[next_step.uid].pawn.nil?() && 
-                  tiles[next_step.uid].pawn.traded_tick < tick_count &&
-                  @traded_tick < tick_count
-                 )
-#                trail_add_single(self, world, tiles, tasks)
-                trade_spots(tiles, next_step)
-                @traded_tick = tick_count 
-            end
-        end
-       
-        @idle_ticks = 0
-        @x = next_step.x
-        @y = next_step.y
 
-        return false if(@trail.empty?())
-        return true
+            return true
+        end
+
+        return false
+    end
+
+
+    def move_around(tiles, next_step, tick_count, dir)
+        if(
+            !assess(tiles, next_step, self, dir) &&
+            !tiles[next_step.uid].pawn.nil?() && 
+            tiles[next_step.uid].pawn.traded_tick < tick_count &&
+            @traded_tick == tick_count &&
+            next_step.x != @x && next_step.y != @y
+        )
+            puts "trading with #{tiles[next_step.uid].pawn.uid}"
+            $paused = true
+#           trail_add_single(self, world, tiles, tasks)
+            trade_spots(tiles, next_step)
+            @traded_tick = tick_count 
+
+            return true
+        elsif(next_step.x == @x && next_step.y == @y)
+            return true
+        end
+
+        return false
     end
 
 

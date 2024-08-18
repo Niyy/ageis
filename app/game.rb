@@ -1,4 +1,5 @@
-$uid_file = 0
+$uid_file ||= 0
+$paused ||= false
 
 
 def get_uid()
@@ -144,7 +145,6 @@ class Game < View
             @tiles[[pawn.x, pawn.y]].pawn = pawn
         end
 
-        @pause = false 
         @admin_mode = false 
 
         plant_stone()
@@ -193,7 +193,7 @@ class Game < View
             return nil
         end
 
-        if(@player.flag.supply <= 0 && !@pause)
+        if(@player.flag.supply <= 0 && !$paused)
             puts "->"
             puts "player: #{@player.flag}"
             puts "flag: #{@world[@player.flag.uid]}"
@@ -203,7 +203,7 @@ class Game < View
             return :title
         end
 
-        update_active_pawns() if(!@pause)
+        update_active_pawns() if(!$paused)
         spawn_enemies() if(@invasion_tick <= 0)
         input()
         audio()
@@ -272,7 +272,7 @@ class Game < View
 
 
     def overhead()
-        if(!@pause && @globals.wave.values.length <= 0)
+        if(!$paused && @globals.wave.values.length <= 0)
             @invasion_tick -= 1 if(tick_count % 60 == 0 && @invasion_tick > 0)
             @day_dir = -1 if(tick_count % 60 == 0 && @day_cycle >= @invasion_temp / 2)
             @day_dir = 1 if(tick_count % 60 == 0 && @day_cycle <= 0)
@@ -314,7 +314,7 @@ class Game < View
         @player.selected_structure = :gate if(inputs.keyboard.key_down.one)
         @player.selected_structure = :wall if(inputs.keyboard.key_down.two)
 
-        @pause = !@pause if(inputs.keyboard.key_down.space)
+        $paused = !$paused if(inputs.keyboard.key_down.space)
 
         if((inputs.mouse.down || inputs.mouse.held) && mouse_x > -1 && 
         mouse_x < @dim && mouse_y > -1 && mouse_y < @dim)
