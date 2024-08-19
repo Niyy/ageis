@@ -313,6 +313,7 @@ class Game < View
 
         @player.selected_structure = :gate if(inputs.keyboard.key_down.one)
         @player.selected_structure = :wall if(inputs.keyboard.key_down.two)
+        @player.selected_structure = :erase if(inputs.keyboard.key_down.three)
 
         $paused = !$paused if(inputs.keyboard.key_down.space)
 
@@ -383,6 +384,7 @@ class Game < View
                     passable: true,
                     name: 'gate'
                 ) if(@player.selected_structure == :gate)
+
                 @tiles[[mouse_x, mouse_y]].ground = Structure.new(
                     x: mouse_x,
                     y: mouse_y,
@@ -397,8 +399,14 @@ class Game < View
                     name: 'gate'
                 ) if(@player.selected_structure == :wall)
 
-
-                @world << @tiles[[mouse_x, mouse_y]].ground
+                if(@player.selected_structure != :erase)
+                    @world << @tiles[[mouse_x, mouse_y]].ground
+                end
+            elsif(@player.selected_structure == :erase)
+                if(@admin_mode)
+                    @world.delete(@tiles[[mouse_x, mouse_y]].ground)
+                    @tiles[[mouse_x, mouse_y]].ground = nil 
+                end
             end
         end
 
@@ -419,6 +427,10 @@ class Game < View
 
         @ui.selector.x = @player.x
         @ui.selector.y = @player.y
+    end
+
+
+    def select_troops()
     end
 
 

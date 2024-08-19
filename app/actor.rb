@@ -4,7 +4,8 @@ class Actor < DRObject
 
 
     def initialize(
-        raiding: false, enemies: {}, 
+        raiding: false, 
+        enemies: {}, 
         **argv
     )
         super
