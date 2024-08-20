@@ -24,7 +24,7 @@ class Game < View
 
     def defaults()
         @survived = 0
-        @invasion_temp = 34
+        @invasion_temp = 4
         @invasion_tick = @invasion_temp
         @day_cycle = 0
         @day_step = (510 / (@invasion_temp)).floor()
@@ -51,7 +51,7 @@ class Game < View
                 g: 100,
                 b: 0,
                 faction: 1,
-                max_supply: 10,
+                max_supply: 100,
                 type: :struct
             )
         }
@@ -405,7 +405,16 @@ class Game < View
             elsif(@player.selected_structure == :erase)
                 if(@admin_mode)
                     @world.delete(@tiles[[mouse_x, mouse_y]].ground)
-                    @tiles[[mouse_x, mouse_y]].ground = nil 
+                    @tiles[[mouse_x, mouse_y]].ground = nil
+                else
+                    ntask = player.build_interface.build(
+                        @player.selected_structure, 
+                        mouse_x, 
+                        mouse_y,
+                        pos,
+                        world, 
+                        tiles
+                    )
                 end
             end
         end
@@ -438,14 +447,8 @@ class Game < View
         @pawns.delete_if do |key, pawn|
             _player = @globals.factions[pawn.faction.to_s.to_sym]
 
-            old_pos = {x: pawn.x, y: pawn.y}
-            pawn.update(tick_count, _player.tasks, @tiles, @world, @globals, 
-                        audio, player)
-
-            update_tile(pawn, old_pos, spot: :pawn)
-
             if(pawn.supply <= 0)
-                puts 'pawn killed'
+                puts "pawn killed #{pawn.uid}"
                 @tiles[[pawn.x, pawn.y]].pawn = nil
                 @globals.faction_pawn_count[pawn.faction.to_s.to_sym] -= 1
                 @globals.wave.delete(pawn.uid)
@@ -453,6 +456,12 @@ class Game < View
 
                 true
             else
+                old_pos = {x: pawn.x, y: pawn.y}
+                pawn.update(tick_count, _player.tasks, @tiles, @world, @globals, 
+                            audio, player)
+
+                update_tile(pawn, old_pos, spot: :pawn)
+
                 false
             end
         end

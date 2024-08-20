@@ -310,7 +310,16 @@ class Actor < DRObject
         dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
         dir.y = (dir.y / dir.y.abs()) if(dir.y != 0)
         
-        return if(fight_blocker(tiles, tick_count, world, next_step, dir))
+        return if(
+            fight_blocker(
+                tiles, 
+                tick_count, 
+                world,
+                next_step,
+                dir, 
+                audio
+            )
+        )
         return if(init_repath(tiles, next_step, dir, tick_count))
         return if(move_around(tiles, next_step, tick_count, dir))
        
@@ -323,7 +332,7 @@ class Actor < DRObject
     end
 
     
-    def fight_blocker(tiles, tick_count, world, next_step, dir)
+    def fight_blocker(tiles, tick_count, world, next_step, dir, audio)
         if(
             !assess(tiles, next_step, self, dir) && 
             combat_assess(tiles, next_step, self, dir)

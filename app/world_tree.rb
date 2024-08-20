@@ -67,20 +67,32 @@ class World_Tree
     def delete(branch)
         return nil if(!@named_lookup.has_key?(branch.uid))
 
+        if(
+            @named_lookup[branch.uid] >= @branches.length
+        )
+            return @named_lookup.delete(branch.uid)
+        end
+
         parent = @named_lookup[branch.uid]
         trade = @branches.length() - 1
         hold = @branches[trade]
-
+        
+        puts "deleting: #{branch.uid}"
+        puts 'pre'
         printy()
 
         @branches[trade] = @branches[parent]
         @branches[parent] = hold
         @named_lookup[hold.uid] = parent
 
+        puts 'post'
         printy()
 
         pop_val = @branches.pop()
-        @named_lookup.delete(pop_val.uid)
+        deleted_val = @named_lookup.delete(pop_val.uid)
+
+        puts "popped value: #{pop_val}"
+        puts "deleted value: #{deleted_val}"
     
         balance(@branches.length() - 1) if(!@branches.empty?())
 
