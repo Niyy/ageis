@@ -24,7 +24,7 @@ class Game < View
 
     def defaults()
         @survived = 0
-        @invasion_temp = 4
+        @invasion_temp = 24
         @invasion_tick = @invasion_temp
         @day_cycle = 0
         @day_step = (510 / (@invasion_temp)).floor()
@@ -145,7 +145,7 @@ class Game < View
             @tiles[[pawn.x, pawn.y]].pawn = pawn
         end
 
-        @admin_mode = false 
+        @admin_mode = true 
 
         plant_stone()
 
@@ -169,19 +169,19 @@ class Game < View
             effect_place: {name: 'ploop', 
                            path: 'sounds/effects/place_sound.wav'}
         }
-        audio[:bgm] = {
-            input: @sound_files.building.path,
-            screenx: 0,
-            screeny: 0,
-            x: 0,
-            y: 0,
-            z: 0,
-            gain: 1.0,
-            pitch: 1.0,
-            looping: true,
-            paused: false,
-            mode: 0
-        }
+#        audio[:bgm] = {
+#            input: @sound_files.building.path,
+#            screenx: 0,
+#            screeny: 0,
+#            x: 0,
+#            y: 0,
+#            z: 0,
+#            gain: 1.0,
+#            pitch: 1.0,
+#            looping: true,
+#            paused: false,
+#            mode: 0
+#        }
     end
 
 
@@ -205,6 +205,7 @@ class Game < View
 
         update_active_pawns() if(!$paused)
         spawn_enemies() if(@invasion_tick <= 0)
+        restart_counter()
         input()
         audio()
         overhead()
@@ -395,8 +396,9 @@ class Game < View
                     r: 23,
                     g: 200,
                     b: 150,
+                    passable: false,
                     type: :struct,
-                    name: 'gate'
+                    name: 'wall'
                 ) if(@player.selected_structure == :wall)
 
                 if(@player.selected_structure != :erase)
@@ -576,16 +578,26 @@ class Game < View
         return nil
     end
 
+
+    def restart_counter()
+        if(@globals.wave.values.length <= 0 && @invasion_tick <= 0)
+            @survived += 1
+            @invasion_tick = @invasion_temp 
+        end
+    end
+
     
     def spawn_enemies()
-        spawn_count = 1 + 1 * @survived
+        spawn_count = 3 + 1 * @survived
 
         if(@globals.wave.values.length <= 0)
             @survived += 1
             @invasion_tick = @invasion_temp 
         end
-       
-        return if(@globals.wave.values.length >= spawn_count)
+
+        puts "need to spawn #{spawn_count - @globals.wave.length}"
+      
+        return if(@globals.wave.values.length > spawn_count)
 
         spawns = [
             [@dim - 1, 0],

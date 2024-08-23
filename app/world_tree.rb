@@ -76,24 +76,14 @@ class World_Tree
         parent = @named_lookup[branch.uid]
         trade = @branches.length() - 1
         hold = @branches[trade]
-        
-        puts "deleting: #{branch.uid}"
-        puts 'pre'
-        printy()
 
         @branches[trade] = @branches[parent]
         @branches[parent] = hold
         @named_lookup[hold.uid] = parent
 
-        puts 'post'
-        printy()
-
         pop_val = @branches.pop()
         deleted_val = @named_lookup.delete(pop_val.uid)
 
-        puts "popped value: #{pop_val}"
-        puts "deleted value: #{deleted_val}"
-    
         balance(@branches.length() - 1) if(!@branches.empty?())
 
         return pop_val

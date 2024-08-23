@@ -287,14 +287,17 @@ class Actor < DRObject
         range = (cur.x - pos.x) * (cur.x - pos.x) +
                 (cur.y - pos.y) * (cur.y - pos.y)
 
-        return 1 if(range == 2)
-
         return range
     end
 
 
     def move(tick_count, tiles, world, tasks, audio)
-        setup_trail if(@trail_end && @task == nil && in_range(self, @trail_end) <= @trail_max_range)
+        setup_trail if(
+            @trail_end && 
+            @task == nil && 
+            in_range(self, @trail_end) <= @trail_max_range
+        )
+
         return if(
             @trail.empty?() || 
             (tick_count - @trail_start_time) % 5 != 0
@@ -337,10 +340,14 @@ class Actor < DRObject
             !assess(tiles, next_step, self, dir) && 
             combat_assess(tiles, next_step, self, dir)
         )
+            puts 'fighting!'
             tile = tiles[next_step.uid]
 
-            if(!tile.ground.nil?() && tick_count - @last_hit > @hit_refresh)
-                tile.ground.reduce_supply(@damage)
+            blocker = tile.ground if(!tile.ground.nil?())
+            blocker = tile.pawn if(!tile.pawn.nil?())
+
+            if(blocker && tick_count - @last_hit > @hit_refresh)
+                blocker.reduce_supply(@damage)
                
                 @last_hit = tick_count
                 audio[get_uid] = {
@@ -360,10 +367,9 @@ class Actor < DRObject
                     world.delete(tile.ground) 
                     tile.ground = nil
                 end
-
-
-                @trail.push(next_step)
             end
+
+            @trail.push(next_step)
 
             return true
         end
@@ -376,13 +382,15 @@ class Actor < DRObject
         blocker = tiles[next_step.uid].pawn
 
         if(
-            !assess(tiles, next_step, self, dir) &&
-            !blocker.nil?() && 
-            blocker.faction != @faction &&
-            blocker.traded_tick >= tick_count
+            !assess(tiles, next_step, self, dir) && (
+                blocker.nil?() || (
+                    blocker.faction != @faction &&
+                    blocker.traded_tick >= tick_count
+                )
+            )
         )
+            puts 'trail flushing'
             @trail = []
-            @trail_end = @task[@task_current].pos
             @found = nil
             @queue = World_Tree.new()
             @parents = {}
@@ -408,8 +416,6 @@ class Actor < DRObject
             trade_spots(tiles, next_step)
             @traded_tick = tick_count 
 
-            return true
-        elsif(next_step.x == @x && next_step.y == @y)
             return true
         end
 
@@ -522,6 +528,7 @@ class Actor < DRObject
 
 
     def setup_trail()
+        puts 'reseting trail'
         @queue = World_Tree.new()
         @parents = {}
         @found = nil
@@ -541,6 +548,8 @@ class Actor < DRObject
                 cur = @queue.pop()
 
                 if(in_range(cur, @trail_end) <= @trail_max_range * @trail_max_range)
+                    puts "in range found #{in_range(cur, @trail_end)}"
+                    puts "found #{cur}"
                     @found = cur 
                     break
                 end
@@ -628,8 +637,14 @@ class Actor < DRObject
         end
 
         return (
-            @enemies.has_key?(tiles[next_pos.uid]&.ground&.faction.to_s.to_sym) ||
-            @enemies.has_key?(tiles[next_pos.uid]&.pawn&.faction.to_s.to_sym)
+            @enemies.has_key?(tiles[next_pos.uid]&.ground&.
+                                                   faction.
+                                                   to_s.
+                                                   to_sym) ||
+            @enemies.has_key?(tiles[next_pos.uid]&.pawn&.
+                                                   faction.
+                                                   to_s.
+                                                   to_sym)
         )
     end
 
