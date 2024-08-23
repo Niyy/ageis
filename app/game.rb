@@ -123,7 +123,7 @@ class Game < View
             [@player.flag.x, @player.flag.y - 1]
         ]
 
-        4.times do |i|
+        2.times do |i|
             a_spawn = spawns.sample()
             spawns.delete(a_spawn)
 
@@ -145,7 +145,7 @@ class Game < View
             @tiles[[pawn.x, pawn.y]].pawn = pawn
         end
 
-        @admin_mode = true 
+        @admin_mode = false 
 
         plant_stone()
 

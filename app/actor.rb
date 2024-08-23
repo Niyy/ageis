@@ -183,6 +183,14 @@ class Actor < DRObject
             tiles[cur.pos][cur.spot] = new_struct
             world[new_struct.uid] = new_struct
         end
+
+        if(in_range(self, cur.pos) >= cur.range * cur.range &&
+           @trail.empty?() &&
+           @found
+        )
+            puts @trail.empty?()
+            cur.hit = false
+        end
     end
 
 
@@ -323,8 +331,8 @@ class Actor < DRObject
                 audio
             )
         )
-        return if(init_repath(tiles, next_step, dir, tick_count))
         return if(move_around(tiles, next_step, tick_count, dir))
+#        return if(init_repath(tiles, next_step, dir, tick_count))
        
         @idle_ticks = 0
         @x = next_step.x
@@ -382,14 +390,11 @@ class Actor < DRObject
         blocker = tiles[next_step.uid].pawn
 
         if(
-            !assess(tiles, next_step, self, dir) && (
-                blocker.nil?() || (
-                    blocker.faction != @faction &&
-                    blocker.traded_tick >= tick_count
-                )
-            )
+            !assess(tiles, next_step, self, dir) && 
+            !blocker.nil?() &&
+            blocker.faction != @faction &&
+            blocker.traded_tick >= tick_count
         )
-            puts 'trail flushing'
             @trail = []
             @found = nil
             @queue = World_Tree.new()
@@ -406,9 +411,9 @@ class Actor < DRObject
         if(
             !assess(tiles, next_step, self, dir) &&
             !tiles[next_step.uid].pawn.nil?() && 
+            tiles[next_step.uid].pawn.faction == @faction &&
             tiles[next_step.uid].pawn.traded_tick < tick_count &&
-            @traded_tick == tick_count &&
-            next_step.x != @x && next_step.y != @y
+            @traded_tick == tick_count
         )
             puts "trading with #{tiles[next_step.uid].pawn.uid}"
             $paused = true
@@ -427,6 +432,8 @@ class Actor < DRObject
         in_way = tiles[next_step.uid].pawn
         tiles[next_step.uid].pawn = self
         tiles[[@x, @y]].pawn = in_way
+        in_way.x = @x
+        in_way.y = @y
     end
 
 
@@ -528,7 +535,6 @@ class Actor < DRObject
 
 
     def setup_trail()
-        puts 'reseting trail'
         @queue = World_Tree.new()
         @parents = {}
         @found = nil
