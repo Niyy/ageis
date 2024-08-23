@@ -228,9 +228,10 @@ class Actor < DRObject
            return
         end
 
-        if(@task.target.type == :actor)
-            _queue = World_Tree.new()
 
+        if(@task.target.type == :actor)# && in_range(self, @task.target) <= 100)
+            _queue = World_Tree.new()
+            
             trail_add(tiles, self, [0, 1], @task.target, _queue)
             trail_add(tiles, self, [0, -1], @task.target, _queue)
             trail_add(tiles, self, [1, 0], @task.target, _queue)
@@ -239,7 +240,6 @@ class Actor < DRObject
             trail_add(tiles, self, [1, -1], @task.target, _queue)
             trail_add(tiles, self, [-1, 1], @task.target, _queue)
             trail_add(tiles, self, [-1, -1], @task.target, _queue)
-
 
             @trail = [_queue.pop()]
         end

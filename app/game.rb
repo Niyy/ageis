@@ -24,7 +24,7 @@ class Game < View
 
     def defaults()
         @survived = 0
-        @invasion_temp = 24
+        @invasion_temp = 2 
         @invasion_tick = @invasion_temp
         @day_cycle = 0
         @day_step = (510 / (@invasion_temp)).floor()
@@ -145,7 +145,7 @@ class Game < View
             @tiles[[pawn.x, pawn.y]].pawn = pawn
         end
 
-        @admin_mode = false 
+        @admin_mode = true 
 
         plant_stone()
 
