@@ -240,8 +240,10 @@ class Actor < DRObject
             trail_add(tiles, self, [1, -1], @task.target, _queue)
             trail_add(tiles, self, [-1, 1], @task.target, _queue)
             trail_add(tiles, self, [-1, -1], @task.target, _queue)
-
-            @trail = [_queue.pop()]
+            
+            next_pos = _queue.pop()
+            @trail = [next_pos]
+            
         end
     end
 
@@ -300,10 +302,14 @@ class Actor < DRObject
 
 
     def move(tick_count, tiles, world, tasks, audio)
-        setup_trail if(
-            @trail_end && 
-            @task == nil && 
-            in_range(self, @trail_end) <= @trail_max_range
+        setup_trail if((
+                @trail.empty?() &&
+                @found 
+            ) || ( 
+                @trail_end && 
+                @task == nil && 
+                in_range(self, @trail_end) <= @trail_max_range
+            )
         )
 
         return if(
@@ -333,6 +339,7 @@ class Actor < DRObject
         )
         return if(move_around(tiles, next_step, tick_count, dir))
 #        return if(init_repath(tiles, next_step, dir, tick_count))
+        return if(can_not_move(tiles, next_step, tick_count, dir))
        
         @idle_ticks = 0
         @x = next_step.x
@@ -407,6 +414,27 @@ class Actor < DRObject
     end
 
 
+    def can_not_move(tiles, next_step, tick_count, dir)
+        if(@idle_ticks >= 5)
+            @trail = []
+            @found = nil
+            @queue = World_Tree.new()
+            @parents = {}
+            @idle_ticks = 0
+
+            return true
+        end
+        if(!assess(tiles, next_step, self, dir))
+            @trail.push(next_step)
+            @idle_ticks += 1
+
+            return true 
+        end
+
+        return false 
+    end
+
+
     def move_around(tiles, next_step, tick_count, dir)
         if(
             !assess(tiles, next_step, self, dir) &&
@@ -419,7 +447,7 @@ class Actor < DRObject
             $paused = true
 #           trail_add_single(self, world, tiles, tasks)
             trade_spots(tiles, next_step)
-            @traded_tick = tick_count 
+            @traded_tick = tick_count
 
             return true
         end
