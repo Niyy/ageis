@@ -44,6 +44,8 @@ class Actor < DRObject
             @idle_ticks += 1
             return
         end
+
+        cur = @task[@task_current]
         
         fetch(tick_count, world, tiles) if(@task_current == :fetch)
         build(tick_count, world, tiles) if(@task_current == :build)
@@ -54,6 +56,15 @@ class Actor < DRObject
         fight(tick_count, world, tiles, tasks, globals) if(
             @task_current == :fight
         )
+
+        if(
+           in_range(self, cur.pos) >= cur.range * cur.range &&
+           @trail.empty?() &&
+           @found
+        )
+            puts @trail.empty?()
+            cur.hit = false
+        end
 
         if(@task_current.nil?())
             setup_trail()
@@ -123,8 +134,10 @@ class Actor < DRObject
         return if(@task)
 
         if((tasks&.assigned && tasks.assigned[[@x, @y]]) || 
-           (tasks&.unassigned && tasks.unassigned[[@x, @y]]) ||
-           !tiles[[@x, @y]][:ground].nil?()
+           (tasks&.unassigned && tasks.unassigned[[@x, @y]]) || (
+               !tiles[[@x, @y]] &&
+               !tiles[[@x, @y]][:ground].nil?()
+           )
         )
             setup_trail()
             @trail_end = nil 
@@ -156,6 +169,7 @@ class Actor < DRObject
             @trail_max_range = cur.range
             cur.hit = true
         end
+
 
         if(in_range(self, cur.pos) <= cur.range * cur.range)
             @task_current = cur.nxt
@@ -315,7 +329,9 @@ class Actor < DRObject
             s_tile = [line_lerp.x.abs, line_lerp.y.abs]
 
             if(
-                tiles[s_tile] && tiles[s_tile][:pawns]&.faction && 
+                !tiles[s_tile].nil?() && 
+                !tiles[s_tile][:pawns].nil?() && 
+                tiles[s_tile][:pawns].faction && 
                 @enemies[tiles[s_tile][:pawns].faction]
             )
                 return tiles[s_tile][:pawns]
@@ -399,8 +415,8 @@ class Actor < DRObject
             puts 'fighting!'
             tile = tiles[next_step.uid]
 
-            blocker = tile.ground if(!tile.ground.nil?())
-            blocker = tile.pawn if(!tile.pawn.nil?())
+            blocker = tile[:ground] if(!tile[:ground].nil?())
+            blocker = tile[:pawn] if(!tile[:pawn].nil?())
 
             if(blocker && tick_count - @last_hit > @hit_refresh)
                 blocker.reduce_supply(@damage)
@@ -419,9 +435,9 @@ class Actor < DRObject
                     paused: false
                 }
 
-                if(tile.ground.supply <= 0)
-                    world.delete(tile.ground) 
-                    tile.ground = nil
+                if(tile[:ground].supply <= 0)
+                    world.delete(tile[:ground]) 
+                    tile[:ground] = nil
                 end
             end
 
@@ -688,7 +704,7 @@ class Actor < DRObject
         return (
             tiles.has_key?(next_pos.uid) && 
             (
-                tiles[next_pos.uid][:ground].nil?() || 
+                !tiles[next_pos.uid][:ground] || 
                 tiles[next_pos.uid][:ground].passable
             ) &&
             tiles[next_pos.uid][:pawn].nil?()
@@ -712,14 +728,21 @@ class Actor < DRObject
         end
 
         return (
-            @enemies.has_key?(tiles[next_pos.uid]&[:ground]&.
-                                                   faction.
-                                                   to_s.
-                                                   to_sym) ||
-            @enemies.has_key?(tiles[next_pos.uid]&.pawn&.
-                                                   faction.
-                                                   to_s.
-                                                   to_sym)
+            (
+                tiles[next_pos.uid] &&
+                tiles[next_pos.uid][:ground] &&
+                @enemies.has_key?(tiles[next_pos.uid][:ground].
+                                                       faction.
+                                                       to_s.
+                                                       to_sym) 
+            ) || (
+                tiles[next_pos.uid] &&
+                tiles[next_pos.uid][:pawn] &&
+                @enemies.has_key?(tiles[next_pos.uid][:pawn].
+                                                       faction.
+                                                       to_s.
+                                                       to_sym)
+            )
         )
     end
 

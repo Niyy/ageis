@@ -24,7 +24,7 @@ class Game < View
 
     def defaults()
         @survived = 0
-        @invasion_temp = 2 
+        @invasion_temp = 24 
         @invasion_tick = @invasion_temp
         @day_cycle = 0
         @day_step = (510 / (@invasion_temp)).floor()
@@ -323,11 +323,11 @@ class Game < View
                 return
             end
                 
-            if(!@tiles[[mouse_x, mouse_y]].pawn.nil?())
-                @player.selected = @tiles[[mouse_x, mouse_y]].pawn
+            if(!@tiles[[mouse_x, mouse_y]][:pawn].nil?())
+                @player.selected = @tiles[[mouse_x, mouse_y]][:pawn]
             elsif(
                   !@player.selected.nil?() && 
-                  @tiles[[mouse_x, mouse_y]].pawn.nil?()
+                  @tiles[[mouse_x, mouse_y]][:pawn].nil?()
                  )
                 if(inputs.mouse.down)
                     @player.selected.setup_trail()
@@ -347,7 +347,7 @@ class Game < View
                     end
                 end
             elsif(
-                @tiles[[mouse_x, mouse_y]].ground.nil?() && 
+                @tiles[[mouse_x, mouse_y]][:ground].nil?() && 
                 !player.tasks.assigned.has_key?([mouse_x, mouse_y]) &&
                 !player.tasks.unassigned.has_key?([mouse_x, mouse_y]) &&
                 !@admin_mode
@@ -364,10 +364,10 @@ class Game < View
                     player.tasks.unassigned[[mouse_x, mouse_y]] = ntask
                 end
             elsif(
-                @tiles[[mouse_x, mouse_y]].ground.nil?() && 
+                @tiles[[mouse_x, mouse_y]][:ground].nil?() && 
                 @admin_mode
             )
-                @tiles[[mouse_x, mouse_y]].ground = Structure.new(
+                @tiles[[mouse_x, mouse_y]][:ground] = Structure.new(
                     x: mouse_x,
                     y: mouse_y,
                     w: 1,
@@ -382,7 +382,7 @@ class Game < View
                     name: 'gate'
                 ) if(@player.selected_structure == :gate)
 
-                @tiles[[mouse_x, mouse_y]].ground = Structure.new(
+                @tiles[[mouse_x, mouse_y]][:ground] = Structure.new(
                     x: mouse_x,
                     y: mouse_y,
                     w: 1,
@@ -398,12 +398,12 @@ class Game < View
                 ) if(@player.selected_structure == :wall)
 
                 if(@player.selected_structure != :erase)
-                    @world << @tiles[[mouse_x, mouse_y]].ground
+                    @world << @tiles[[mouse_x, mouse_y]][:ground]
                 end
             elsif(@player.selected_structure == :erase)
                 if(@admin_mode)
-                    @world.delete(@tiles[[mouse_x, mouse_y]].ground)
-                    @tiles[[mouse_x, mouse_y]].ground = nil
+                    @world.delete(@tiles[[mouse_x, mouse_y]][:ground])
+                    @tiles[[mouse_x, mouse_y]][:ground] = nil
                 else
                     ntask = player.build_interface.build(
                         @player.selected_structure, 
@@ -447,7 +447,7 @@ class Game < View
 
             if(pawn.supply <= 0)
                 puts "pawn killed #{pawn.uid}"
-                @tiles[[pawn.x, pawn.y]].pawn = nil
+                @tiles[[pawn.x, pawn.y]][:pawn] = nil
                 @globals.faction_pawn_count[pawn.faction.to_s.to_sym] -= 1
                 @globals.wave.delete(pawn.uid)
                 @world.delete(pawn)
@@ -482,11 +482,11 @@ class Game < View
         if(dir.x != 0 && dir.y != 0)
             return (
                 @tiles.has_key?(next_pos.uid) && 
-                @tiles[next_pos.uid].ground.nil?() &&
+                @tiles[next_pos.uid][:ground].nil?() &&
                 @tiles.has_key?([next_pos.x, og.y]) && 
-                @tiles[[next_pos.x, og.y]].ground.nil?() && 
+                @tiles[[next_pos.x, og.y]][:ground].nil?() && 
                 @tiles.has_key?([og.x, next_pos.y]) && 
-                @tiles[[og.x, next_pos.y]].ground.nil?()
+                @tiles[[og.x, next_pos.y]][:ground].nil?()
             )
         end
         
@@ -499,10 +499,19 @@ class Game < View
 
     def accessable(pos)
         return (
-            @tiles[[pos.x + 1, pos.y]]&.ground.nil?() ||
-            @tiles[[pos.x - 1, pos.y]]&.ground.nil?() ||
-            @tiles[[pos.x, pos.y + 1]]&.ground.nil?() ||
-            @tiles[[pos.x, pos.y - 1]]&.ground.nil?()
+            (
+                @tiles.has_key?([pos.x + 1, pos.y]) &&
+                @tiles[[pos.x + 1, pos.y]][:ground].nil?()
+            ) || (
+                @tiles.has_key?([pos.x - 1, pos.y]) &&
+                @tiles[[pos.x - 1, pos.y]][:ground].nil?()
+            ) || (
+                @tiles.has_key?([pos.x, pos.y + 1]) &&
+                @tiles[[pos.x, pos.y + 1]][:ground].nil?() 
+            ) || (
+                @tiles.has_key?([pos.x, pos.y - 1]) &&
+                @tiles[[pos.x, pos.y - 1]][:ground].nil?()
+            )
         )
     end
 
@@ -621,12 +630,12 @@ class Game < View
                 b: 0
             )
             
-            if(@tiles[a_spawn].pawn.nil?() && @tiles[a_spawn].pawn.nil?())
+            if(@tiles[a_spawn][:pawn].nil?() && @tiles[a_spawn][:pawn].nil?())
                 @world << pawn
                 @pawns[pawn.uid] = pawn 
                 @globals.faction_pawn_count[:'2'] += 1
                 @globals.wave[pawn.uid] = pawn 
-                @tiles[a_spawn].pawn = pawn
+                @tiles[a_spawn][:pawn] = pawn
                 update_tile(pawn, pawn)
             end
         end
