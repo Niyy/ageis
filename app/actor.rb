@@ -229,22 +229,57 @@ class Actor < DRObject
         end
 
 
-        if(@task.target.type == :actor)# && in_range(self, @task.target) <= 100)
-            _queue = World_Tree.new()
-            
-            trail_add(tiles, self, [0, 1], @task.target, _queue)
-            trail_add(tiles, self, [0, -1], @task.target, _queue)
-            trail_add(tiles, self, [1, 0], @task.target, _queue)
-            trail_add(tiles, self, [-1, 0], @task.target, _queue)
-            trail_add(tiles, self, [1, 1], @task.target, _queue)
-            trail_add(tiles, self, [1, -1], @task.target, _queue)
-            trail_add(tiles, self, [-1, 1], @task.target, _queue)
-            trail_add(tiles, self, [-1, -1], @task.target, _queue)
-            
-            next_pos = _queue.pop()
-            @trail = [next_pos]
-            
+        if(@task.target.supply <= 0)
+            @task = nil
+            setup_trail()
+
+            return
         end
+
+        
+        if(
+            @task.target.type == :actor && 
+            !@task.target.nil?() &&
+            !@found.nil?() &&
+            @task.target.x != @found.x && 
+            @task.target.y != @found.y
+        )
+            checks = 0
+
+            while(!@trail.empty?() && checks < 20)
+                if(
+                    @task.target.x == @trail[-1].x && 
+                    @task.target.y == @trail[-1].y
+                )
+                    return
+                end
+
+                checks -= 1
+                @trail.pop() 
+            end
+
+            setup_trail()
+            @trail = []
+            @trail_end = @task.target
+            @trail_start_time = tick_count 
+            @trail_max_range = @fight_range
+        end
+#        if(@task.target.type == :actor)# && in_range(self, @task.target) <= 100)
+#            _queue = World_Tree.new()
+#            
+#            trail_add(tiles, self, [0, 1], @task.target, _queue)
+#            trail_add(tiles, self, [0, -1], @task.target, _queue)
+#            trail_add(tiles, self, [1, 0], @task.target, _queue)
+#            trail_add(tiles, self, [-1, 0], @task.target, _queue)
+#            trail_add(tiles, self, [1, 1], @task.target, _queue)
+#            trail_add(tiles, self, [1, -1], @task.target, _queue)
+#            trail_add(tiles, self, [-1, 1], @task.target, _queue)
+#            trail_add(tiles, self, [-1, -1], @task.target, _queue)
+#            
+#            next_pos = _queue.pop()
+#            @trail = [next_pos]
+#            
+#        end
     end
 
 
@@ -345,8 +380,14 @@ class Actor < DRObject
         @x = next_step.x
         @y = next_step.y
 
+        check_for_repathing(tiles)
+
         return false if(@trail.empty?())
         return true
+    end
+
+
+    def check_for_repathing(tiles)
     end
 
     

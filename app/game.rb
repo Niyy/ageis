@@ -146,7 +146,7 @@ class Game < View
             @tiles[[pawn.x, pawn.y]].pawn = pawn
         end
 
-        @admin_mode = true 
+        @admin_mode = false 
 
         plant_stone()
 
