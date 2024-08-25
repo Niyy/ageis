@@ -1,4 +1,5 @@
 require 'app/globals.rb'
+require 'app/tile.rb'
 require 'app/dr_object.rb'
 require 'app/actor.rb'
 require 'app/structure.rb'

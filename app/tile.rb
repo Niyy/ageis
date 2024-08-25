@@ -1,11 +1,24 @@
 class Tile
-    attr_accessor :z, :ground, :pawn, :flora, :z
+    attr_reader :contents 
 
 
     def initialize()
-        @ground = nil
-        @pawn = nil
-        @flora = nil
+        @contents = {pawn: nil, ground: nil, flora: nil}
         @z = 0 
+    end
+
+
+    def [](key)
+        return @contents[key]
+    end
+
+
+    def []=(key, value)
+        @contents[key] = value
+    end
+
+
+    def has_key?(key)
+        return has_key?(key)
     end
 end

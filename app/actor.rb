@@ -124,7 +124,7 @@ class Actor < DRObject
 
         if((tasks&.assigned && tasks.assigned[[@x, @y]]) || 
            (tasks&.unassigned && tasks.unassigned[[@x, @y]]) ||
-           !tiles[[@x, @y]].ground.nil?()
+           !tiles[[@x, @y]][:ground].nil?()
         )
             setup_trail()
             @trail_end = nil 
@@ -159,7 +159,7 @@ class Actor < DRObject
 
         if(in_range(self, cur.pos) <= cur.range * cur.range)
             @task_current = cur.nxt
-            tiles[cur.pos].ground.reduce_supply()
+            tiles[cur.pos][:ground].reduce_supply()
         end
     end
 
@@ -315,10 +315,10 @@ class Actor < DRObject
             s_tile = [line_lerp.x.abs, line_lerp.y.abs]
 
             if(
-                tiles[s_tile] && tiles[s_tile].pawns&.faction && 
-                @enemies[tiles[s_tile].pawns.faction]
+                tiles[s_tile] && tiles[s_tile][:pawns]&.faction && 
+                @enemies[tiles[s_tile][:pawns].faction]
             )
-                return tiles[s_tile].pawns
+                return tiles[s_tile][:pawns]
             end
         end
 
@@ -435,7 +435,7 @@ class Actor < DRObject
 
 
     def init_repath(tiles, next_step, dir, tick_count)
-        blocker = tiles[next_step.uid].pawn
+        blocker = tiles[next_step.uid][:pawn]
 
         if(
             !assess(tiles, next_step, self, dir) && 
@@ -479,9 +479,9 @@ class Actor < DRObject
     def move_around(tiles, next_step, tick_count, dir)
         if(
             !assess(tiles, next_step, self, dir) &&
-            !tiles[next_step.uid].pawn.nil?() && 
-            tiles[next_step.uid].pawn.faction == @faction &&
-            tiles[next_step.uid].pawn.traded_tick < tick_count &&
+            !tiles[next_step.uid][:pawn].nil?() && 
+            tiles[next_step.uid][:pawn].faction == @faction &&
+            tiles[next_step.uid][:pawn].traded_tick < tick_count &&
             @traded_tick == tick_count
         )
             puts "trading with #{tiles[next_step.uid].pawn.uid}"
@@ -498,9 +498,9 @@ class Actor < DRObject
 
 
     def trade_spots(tiles, next_step)
-        in_way = tiles[next_step.uid].pawn
-        tiles[next_step.uid].pawn = self
-        tiles[[@x, @y]].pawn = in_way
+        in_way = tiles[next_step.uid][:pawn]
+        tiles[next_step.uid][:pawn] = self
+        tiles[[@x, @y]][:pawn] = in_way
         in_way.x = @x
         in_way.y = @y
     end
@@ -518,8 +518,8 @@ class Actor < DRObject
 
         if(@task.target.supply <= 0)
             world.delete(@task.target) 
-            tiles[tile].ground = nil if(@task.target.type == :struct)
-            tiles[tile].pawn = nil if(@task.target.type == :actor)
+            tiles[tile][:ground] = nil if(@task.target.type == :struct)
+            tiles[tile][:pawn] = nil if(@task.target.type == :actor)
 
 #            globals.area_flag = nil if(
 #                globals.area_flag.faction != @faction
@@ -666,32 +666,32 @@ class Actor < DRObject
             return (
                 tiles.has_key?(next_pos.uid) && 
                 (
-                    tiles[next_pos.uid].ground.nil?() || 
-                    tiles[next_pos.uid].ground.passable
+                    tiles[next_pos.uid][:ground].nil?() || 
+                    tiles[next_pos.uid][:ground].passable
                 ) &&
-                tiles[next_pos.uid].pawn.nil?() &&
+                tiles[next_pos.uid][:pawn].nil?() &&
                 tiles.has_key?([next_pos.x, og.y]) && 
                 (
-                    tiles[[next_pos.x, og.y]].ground.nil?() || 
-                    tiles[[next_pos.x, og.y]].ground.passable
+                    tiles[[next_pos.x, og.y]][:ground].nil?() || 
+                    tiles[[next_pos.x, og.y]][:ground].passable
                 ) && 
-                tiles[[next_pos.x, og.y]].pawn.nil?() && 
+                tiles[[next_pos.x, og.y]][:pawn].nil?() && 
                 tiles.has_key?([og.x, next_pos.y]) && 
                 (
-                    tiles[[og.x, next_pos.y]].ground.nil?() ||
-                    tiles[[og.x, next_pos.y]].ground.passable 
+                    tiles[[og.x, next_pos.y]][:ground].nil?() ||
+                    tiles[[og.x, next_pos.y]][:ground].passable 
                 ) &&
-                tiles[[og.x, next_pos.y]].pawn.nil?()
+                tiles[[og.x, next_pos.y]][:pawn].nil?()
             )
         end
         
         return (
             tiles.has_key?(next_pos.uid) && 
             (
-                tiles[next_pos.uid].ground.nil?() || 
-                tiles[next_pos.uid].ground.passable
+                tiles[next_pos.uid][:ground].nil?() || 
+                tiles[next_pos.uid][:ground].passable
             ) &&
-            tiles[next_pos.uid].pawn.nil?()
+            tiles[next_pos.uid][:pawn].nil?()
         )
     end
 
@@ -700,19 +700,19 @@ class Actor < DRObject
         if(dir.x != 0 && dir.y != 0)
             return (
                 tiles.has_key?(next_pos.uid) && 
-                tiles[next_pos.uid].ground.nil?() &&
-                tiles[next_pos.uid].pawn.nil?() &&
+                tiles[next_pos.uid][:ground].nil?() &&
+                tiles[next_pos.uid][:pawn].nil?() &&
                 tiles.has_key?([next_pos.x, og.y]) && 
-                tiles[[next_pos.x, og.y]].ground.nil?() && 
-                tiles[[next_pos.x, og.y]].pawn.nil?() && 
+                tiles[[next_pos.x, og.y]][:ground].nil?() && 
+                tiles[[next_pos.x, og.y]][:pawn].nil?() && 
                 tiles.has_key?([og.x, next_pos.y]) && 
-                tiles[[og.x, next_pos.y]].ground.nil?() &&
-                tiles[[og.x, next_pos.y]].pawn.nil?()
+                tiles[[og.x, next_pos.y]][:ground].nil?() &&
+                tiles[[og.x, next_pos.y]][:pawn].nil?()
             )
         end
 
         return (
-            @enemies.has_key?(tiles[next_pos.uid]&.ground&.
+            @enemies.has_key?(tiles[next_pos.uid]&[:ground]&.
                                                    faction.
                                                    to_s.
                                                    to_sym) ||

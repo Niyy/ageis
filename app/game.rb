@@ -106,17 +106,12 @@ class Game < View
     
         (64).times() do |y|
             (64).times() do |x|
-                @tiles[[x, y]] = {
-                    ground: nil,
-                    pawn: nil,
-                    flora: nil,
-                    connections: {}
-                }
+                @tiles[[x, y]] = Tile.new()
             end
         end
 
         @world << @player.flag
-        @tiles[[@player.flag.x, @player.flag.y]].ground = @player.flag
+        @tiles[[@player.flag.x, @player.flag.y]][:ground] = @player.flag
         spawns = [
             [@player.flag.x + 1, @player.flag.y],
             [@player.flag.x - 1, @player.flag.y],
@@ -143,7 +138,7 @@ class Game < View
 
             @world << pawn
             @pawns[pawn.uid] = pawn 
-            @tiles[[pawn.x, pawn.y]].pawn = pawn
+            @tiles[[pawn.x, pawn.y]][:pawn] = pawn
         end
 
         @admin_mode = false 
@@ -497,7 +492,7 @@ class Game < View
         
         return (
             @tiles.has_key?(next_pos.uid) && 
-            @tiles[next_pos.uid].ground.nil?()
+            @tiles[next_pos.uid][:ground].nil?()
         )
     end
 
@@ -558,7 +553,7 @@ class Game < View
             @resources[res.type] = {} if(!@resources.has_key?(res.type))
 
             @resources[res.type][res.uid] = res
-            @tiles[cur.uid].ground = res
+            @tiles[cur.uid][:ground] = res
             @world << res 
 
             trail_add(cur, [0, 1], start, queue, visited)
