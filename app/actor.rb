@@ -62,8 +62,7 @@ class Actor < DRObject
            @trail.empty?() &&
            @found
         )
-            puts @trail.empty?()
-            cur.hit = false
+            @trail_end = @found
         end
 
         if(@task_current.nil?())
@@ -170,7 +169,7 @@ class Actor < DRObject
             cur.hit = true
         end
 
-
+        puts "range data: #{in_range(self, cur.pos)}"
         if(in_range(self, cur.pos) <= cur.range * cur.range)
             @task_current = cur.nxt
             tiles[cur.pos][:ground].reduce_supply()
