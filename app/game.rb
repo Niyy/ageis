@@ -107,9 +107,10 @@ class Game < View
         (64).times() do |y|
             (64).times() do |x|
                 @tiles[[x, y]] = {
-                    pawn: nil, 
-                    flora: nil, 
-                    ground: nil 
+                    ground: nil,
+                    pawn: nil,
+                    flora: nil,
+                    connections: {}
                 }
             end
         end
