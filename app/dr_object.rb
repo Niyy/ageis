@@ -5,9 +5,9 @@ class DRObject
     attr_reader :uid
 
 
-    def initialize(x: 0, y: 0, z: 0, w: 1, h: 1, r: 0, g: 0, b: 0, 
-    consumption: 1, production: 0, max_supply: 1, tick: 0, faction: -1,
-    primitive_marker: :solid, type: nil)
+    def initialize(x: 0, y: 0, z: 0, w: 1, h: 1, r: 255, g: 0, b: 0, 
+    consumption: 1, production: 0, max_supply: 1, tick: 0, faction: '-1',
+    path: '', primitive_marker: :solid, type: nil)
         @x = x
         @y = y
         @z = z

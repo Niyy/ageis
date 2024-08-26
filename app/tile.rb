@@ -2,8 +2,8 @@ class Tile
     attr_reader :contents 
 
 
-    def initialize()
-        @contents = {pawn: nil, ground: nil, flora: nil}
+    def initialize(contents: {pawn: nil, ground: nil, flora: nil})
+        @contents = contents 
         @z = 0 
     end
 

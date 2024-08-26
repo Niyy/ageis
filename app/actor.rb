@@ -31,11 +31,14 @@ class Actor < DRObject
 
 
     def update(tick_count, tasks, tiles, world, globals, audio, player)
+        @interacted_entities = []
         generate_personal_task(tick_count, world, tiles, tasks, globals, player)
         do_task(tick_count, world, tiles, tasks, globals)
         create_trail(tiles, tasks) if(@found.nil?() &&
                                       !@trail_end.nil?())
         move(tick_count, tiles, world, tasks, audio)
+
+        return @interacted_entities
     end
 
 
@@ -191,10 +194,10 @@ class Actor < DRObject
         if(in_range(self, cur.pos) <= cur.range * cur.range)
             @task_current = cur.nxt
             new_struct = Structure.new(cur.struct)
-
+            
             new_struct.faction = @faction
-            tiles[cur.pos][cur.spot] = new_struct
-            world[new_struct.uid] = new_struct
+
+            @interacted_entities << [new_struct, :build]
         end
 
         if(in_range(self, cur.pos) >= cur.range * cur.range &&
@@ -388,7 +391,6 @@ class Actor < DRObject
             )
         )
         return if(move_around(tiles, next_step, tick_count, dir))
-#        return if(init_repath(tiles, next_step, dir, tick_count))
         return if(can_not_move(tiles, next_step, tick_count, dir))
        
         @idle_ticks = 0
@@ -441,6 +443,7 @@ class Actor < DRObject
             end
 
             @trail.push(next_step)
+            @interacted_entities << [blocker, :fight]
 
             return true
         end
@@ -528,19 +531,11 @@ class Actor < DRObject
             return
         end
 
+        @interacted_entities << [@task.target, :fight]
         @task.target.reduce_supply(@damage)
         tile = [@task.target.x, @task.target.y]
 
         if(@task.target.supply <= 0)
-            world.delete(@task.target) 
-            tiles[tile][:ground] = nil if(@task.target.type == :struct)
-            tiles[tile][:pawn] = nil if(@task.target.type == :actor)
-
-#            globals.area_flag = nil if(
-#                globals.area_flag.faction != @faction
-#                @task.target.uid == globals.area_flag.uid 
-#            )
-
             tasks.assigned.delete(@task.uid) if(tasks)
             @current_task = nil
             @task = nil
@@ -759,6 +754,16 @@ class Actor < DRObject
 
     def wander_for(world, tiles, tasks, ticks) 
         
+    end
+
+
+    def faction()
+        @faction.to_sym()
+    end
+
+
+    def faction=(value)
+        @faction = value
     end
 
 

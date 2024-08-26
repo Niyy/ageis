@@ -6,11 +6,33 @@ class Debuggery < View
         self.args = args
         gtk.write_file('file.log', '')
         puts 'hellow'
+        $my_region ||= Region.new()
+
+        $my_region.add_faction('1')
+
+        (64).times() do |y|
+            (64).times() do |x|
+                $my_region.add_tile([x,y], Tile.new())
+            end
+        end
+        
+        actor = Actor.new(w: 64, h: 64, r: 255, g: 0, b: 0)
+        $my_region[actor.uid] = actor
     end
 
 
     def tick()
-        test_world_tree()
+#        test_world_tree()
+        test_region()
+
+        return nil
+    end
+
+
+    def test_region()
+        outputs.primitives << $my_region.output()
+        $my_region.args = args
+        $my_region.update()
     end
 
 

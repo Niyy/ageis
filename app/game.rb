@@ -654,7 +654,8 @@ def tick(args)
     $views ||= {
         game: nil, 
         title: Title.new(args), 
-        current: :title, 
+#        current: :title, 
+        current: :debuggery, 
         last: nil,
         debuggery: nil
     }
