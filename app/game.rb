@@ -119,7 +119,7 @@ class Game < View
             [@player.flag.x, @player.flag.y - 1]
         ]
 
-        2.times do |i|
+        1.times do |i|
             a_spawn = spawns.sample()
             spawns.delete(a_spawn)
 

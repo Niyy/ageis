@@ -57,10 +57,13 @@ class Actor < DRObject
             @task_current == :fight
         )
 
+        puts cur
+
         if(
-           in_range(self, cur.pos) >= cur.range * cur.range &&
            @trail.empty?() &&
-           @found
+           @found &&
+           !cur.nil?() &&
+           in_range(self, cur.pos) >= cur.range * cur.range
         )
             @trail_end = @found
         end
@@ -161,15 +164,15 @@ class Actor < DRObject
     def fetch(tick_count, world, tiles)
         cur = @task[@task_current]
         
-        if(!cur&.hit && in_range(self, cur.pos) > cur.range * cur.range)
+        if(!@trail_end && in_range(self, cur.pos) > cur.range * cur.range)
             setup_trail()
             @trail_end = cur.pos 
             @trail_start_time = tick_count 
             @trail_max_range = cur.range
-            cur.hit = true
         end
 
         puts "range data: #{in_range(self, cur.pos)}"
+        puts "needs: #{cur.range * cur.range}"
         if(in_range(self, cur.pos) <= cur.range * cur.range)
             @task_current = cur.nxt
             tiles[cur.pos][:ground].reduce_supply()
@@ -302,12 +305,18 @@ class Actor < DRObject
             uid: target.uid,
             target: target, # Overall goal
             close_in: {
+                pos: target,
+                range: @fight_blocker,
                 nxt: :fight
             },
             fight: {
+                pos: target,
+                range: @fight_blocker,
                 nxt: :hunt
             },
             hunt: {
+                pos: target,
+                range: @fight_blocker
             }
         }
     end
@@ -471,6 +480,7 @@ class Actor < DRObject
 
 
     def can_not_move(tiles, next_step, tick_count, dir)
+        puts "id for can not move: #{@id}"
         if(@idle_ticks >= 5)
             @trail = []
             @found = nil
@@ -497,13 +507,10 @@ class Actor < DRObject
             !tiles[next_step.uid][:pawn].nil?() && 
             tiles[next_step.uid][:pawn].faction == @faction &&
             tiles[next_step.uid][:pawn].traded_tick < tick_count &&
-            @traded_tick == tick_count
+            @traded_tick < tick_count
         )
-            puts "trading with #{tiles[next_step.uid].pawn.uid}"
-            $paused = true
 #           trail_add_single(self, world, tiles, tasks)
-            trade_spots(tiles, next_step)
-            @traded_tick = tick_count
+            trade_spots(tiles, next_step, tick_count)
 
             return true
         end
@@ -512,12 +519,17 @@ class Actor < DRObject
     end
 
 
-    def trade_spots(tiles, next_step)
+    def trade_spots(tiles, next_step, tick_count)
         in_way = tiles[next_step.uid][:pawn]
-        tiles[next_step.uid][:pawn] = self
+
         tiles[[@x, @y]][:pawn] = in_way
         in_way.x = @x
         in_way.y = @y
+        in_way.traded_tick = tick_count
+        tiles[next_step.uid][:pawn] = self
+        @x = next_step.x
+        @y = next_step.y
+        @traded_tick = tick_count
     end
 
 
