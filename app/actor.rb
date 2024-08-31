@@ -15,7 +15,6 @@ class Actor < DRObject
         @carrying = nil
         @idle_ticks = 0
         @task = nil
-        @task_current = nil
         @type = :actor
         @traded_tick = 0
 
@@ -40,21 +39,21 @@ class Actor < DRObject
 
 
     def do_task(tick_count, world, tiles, tasks, globals)
-        if(@task.nil?() || @task_current.nil?())
+        if(@task.nil?())
             @idle_ticks += 1
             return
         end
 
-        cur = @task[@task_current]
+        cur = @task
         
-        fetch(tick_count, world, tiles) if(@task_current == :fetch)
-        build(tick_count, world, tiles) if(@task_current == :build)
-        hunt(tick_count, world, tiles, tasks, globals) if(@task_current == :hunt)
+        fetch(tick_count, world, tiles) if(@task.code == :fetch)
+        build(tick_count, world, tiles) if(@task.code == :build)
+        hunt(tick_count, world, tiles, tasks, globals) if(@task.code == :hunt)
         close_in(tick_count, world, tiles, globals) if(
-            @task_current == :close_in
+            @task.code == :close_in
         )
         fight(tick_count, world, tiles, tasks, globals) if(
-            @task_current == :fight
+            @task.code == :fight
         )
 
         puts cur
@@ -68,7 +67,7 @@ class Actor < DRObject
             @trail_end = @found
         end
 
-        if(@task_current.nil?())
+        if(@task.nil?())
             setup_trail()
             tasks.assigned.delete(@task.uid)
             @task = nil
@@ -85,7 +84,6 @@ class Actor < DRObject
             !tasks.unassigned.empty?()
         )
             @task = tasks.unassigned.shift()[1]
-            @task_current = @task.start
 
             tasks.assigned[@task.uid] = @task
             return
@@ -94,8 +92,11 @@ class Actor < DRObject
         if(
            globals.wave.length > 0 && 
            globals.area_owner.faction == @faction &&
-           !tasks.nil?() && (@task.nil?() ||
-           !@task.has_key?(:fight))
+           !tasks.nil?() && 
+           (
+               @task.nil?() ||
+               !@task.target.faction != @faction ||
+           )
           )
             if(!@task.nil?())
                 tasks.assigned.delete(@task.uid)
@@ -300,25 +301,44 @@ class Actor < DRObject
 
 
     def generate_fight(target)
-        return {
-            start: :hunt,
+        return Task.new(
             uid: target.uid,
-            target: target, # Overall goal
-            close_in: {
-                pos: target,
-                range: @fight_blocker,
-                nxt: :fight
-            },
-            fight: {
-                pos: target,
-                range: @fight_blocker,
-                nxt: :hunt
-            },
-            hunt: {
-                pos: target,
-                range: @fight_blocker
+            target: target,
+            max_range: 1,
+            next_tasks: {"-1": 
+                Task.new(
+                    uid: target.uid,
+                    target: target,
+                    max_range: 1,
+                    next_tasks: {"-1":
+                        Task.new(
+                            uid: target.uid,
+                            target: target,
+                            max_range: 1
+                        ) 
+                    }
+                )
             }
-        }
+        )
+#        return {
+#            start: :hunt,
+#            uid: target.uid,
+#            target: target, # Overall goal
+#            close_in: {
+#                pos: target,
+#                range: @fight_blocker,
+#                nxt: :fight
+#            },
+#            fight: {
+#                pos: target,
+#                range: @fight_blocker,
+#                nxt: :hunt
+#            },
+#            hunt: {
+#                pos: target,
+#                range: @fight_blocker
+#            }
+#        }
     end
 
 
