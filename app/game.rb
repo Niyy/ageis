@@ -42,8 +42,8 @@ class Game < View
                 unassigned: {}
             },
             flag: Structure.new(
-                x: 32,
-                y: 32,
+                x: 5,
+                y: 5,
                 w: 1,
                 h: 1,
                 z: 10,
@@ -94,7 +94,7 @@ class Game < View
         @job_board = {build: {}}
         @tiles = {}
         @pawns = {}
-        @dim = 64
+        @dim = 10 
         @tile_dim = 8
         @tasks = {assigned: {}, unassigned: {}}
 
@@ -104,8 +104,8 @@ class Game < View
         outputs[:view].primitives << @world.branches
         outputs[:view].primitives << @ui.values() 
     
-        (64).times() do |y|
-            (64).times() do |x|
+        (@dim).times() do |y|
+            (@dim).times() do |x|
                 @tiles[[x, y]] = Tile.new()
             end
         end
@@ -123,11 +123,10 @@ class Game < View
             a_spawn = spawns.sample()
             spawns.delete(a_spawn)
 
-            pawn = Actor.new(
+            pawn = Pawn.new(
                 x: a_spawn.x,
                 y: a_spawn.y,
                 faction: 1,
-                raiding: false,
                 w: 1, 
                 h: 1,
                 z: 1,
@@ -143,7 +142,7 @@ class Game < View
 
         @admin_mode = false 
 
-        plant_stone()
+#        plant_stone()
 
         @globals = {
             wave: {},
@@ -200,7 +199,7 @@ class Game < View
         end
 
         update_active_pawns() if(!$paused)
-        spawn_enemies() if(@invasion_tick <= 0)
+#        spawn_enemies() if(@invasion_tick <= 0)
         restart_counter()
         input()
         audio()
@@ -274,8 +273,6 @@ class Game < View
             @day_dir = -1 if(tick_count % 60 == 0 && @day_cycle >= @invasion_temp / 2)
             @day_dir = 1 if(tick_count % 60 == 0 && @day_cycle <= 0)
             @day_cycle += @day_dir if(tick_count % 60 == 0)
-
-            puts @day_cycle
         end
 
         current_dif = @day_step * @day_cycle
@@ -330,10 +327,16 @@ class Game < View
                   @tiles[[mouse_x, mouse_y]][:pawn].nil?()
                  )
                 if(inputs.mouse.down)
-                    @player.selected.setup_trail()
-                    @player.selected.trail_end = [mouse_x, mouse_y]
-                    @player.selected.trail_start_time = state.tick_count 
-                    @player.selected.trail_max_range = 1
+                    @player.selected.target = {
+                        x: mouse_x, 
+                        y: mouse_y, 
+                        z: 0, 
+                        uid: [mouse_x, mouse_y],
+                        tile: [mouse_x, mouse_y],
+                        type: :waypoint
+                    }
+                    @player.selected.path_start = state.tick_count 
+                    @player.selected.path_max_range = 0
                     
                     if(@player.selected.task)
                         @player.selected.task.hit = false if(
@@ -455,8 +458,7 @@ class Game < View
                 true
             else
                 old_pos = {x: pawn.x, y: pawn.y}
-                pawn.update(tick_count, _player.tasks, @tiles, @world, @globals, 
-                            audio, player)
+                pawn.update(tick_count, @tiles, _player)
 
                 update_tile(pawn, old_pos, spot: :pawn)
 
@@ -652,9 +654,9 @@ def tick(args)
     args.outputs.background_color = [0, 0, 0]
 
     $views ||= {
-        game: nil, 
-        title: Title.new(args), 
-        current: :title, 
+        game: Game.new(args), 
+#        title: Title.new(args), 
+        current: :game, 
         last: nil,
         debuggery: nil
     }

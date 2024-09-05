@@ -1,6 +1,8 @@
 require 'app/globals.rb'
+require 'app/min_tree.rb'
 require 'app/tile.rb'
 require 'app/dr_object.rb'
+require 'app/pawn.rb'
 require 'app/actor.rb'
 require 'app/structure.rb'
 require 'app/build_interface.rb'

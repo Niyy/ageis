@@ -95,7 +95,7 @@ class Actor < DRObject
            !tasks.nil?() && 
            (
                @task.nil?() ||
-               !@task.target.faction != @faction ||
+               !@task.target.faction != @faction
            )
           )
             if(!@task.nil?())
