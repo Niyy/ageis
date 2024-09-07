@@ -29,6 +29,7 @@ class Game < View
         @day_cycle = 0
         @day_step = (510 / (@invasion_temp)).floor()
         @load = 10
+        @dim = 64
     
         @player = {
             x: 0,
@@ -42,8 +43,8 @@ class Game < View
                 unassigned: {}
             },
             flag: Structure.new(
-                x: 5,
-                y: 5,
+                x: (@dim / 2).floor(),
+                y: (@dim / 2).floor(),
                 w: 1,
                 h: 1,
                 z: 10,
@@ -65,7 +66,7 @@ class Game < View
                 y: 64,
                 text: @player.selected_structure.to_s,
                 font: 'fonts/NotJamPixel5.ttf',
-                r: 255,
+                r: 255, 
                 g: 255,
                 b: 255,
                 size_px: 5
@@ -94,12 +95,11 @@ class Game < View
         @job_board = {build: {}}
         @tiles = {}
         @pawns = {}
-        @dim = 10 
         @tile_dim = 8
         @tasks = {assigned: {}, unassigned: {}}
 
-        outputs[:view].w = 64
-        outputs[:view].h = 64
+        outputs[:view].w = @dim 
+        outputs[:view].h = @dim 
         outputs[:view].transient!
         outputs[:view].primitives << @world.branches
         outputs[:view].primitives << @ui.values() 
@@ -126,7 +126,7 @@ class Game < View
             pawn = Pawn.new(
                 x: a_spawn.x,
                 y: a_spawn.y,
-                faction: 1,
+                faction: "1",
                 w: 1, 
                 h: 1,
                 z: 1,
@@ -140,7 +140,7 @@ class Game < View
             @tiles[[pawn.x, pawn.y]][:pawn] = pawn
         end
 
-        @admin_mode = false 
+        @admin_mode = true 
 
 #        plant_stone()
 

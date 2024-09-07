@@ -8,6 +8,7 @@ class Pawn < DRObject
 
         @task = nil
         @speed = 20
+        @faction = argv.faction
 
         # Pathing
         clear_path()
@@ -136,6 +137,7 @@ class Pawn < DRObject
         end
 
         if(!_path_found.nil?())
+            puts 'found a path: creating final.'
             @path_cur.clear()
             @path_end = _path_found
             child = _path_found 
