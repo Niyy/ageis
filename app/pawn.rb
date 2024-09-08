@@ -36,16 +36,16 @@ class Pawn < DRObject
     end
 
 
-    def path_queue_add(tiles, cur, dif, trail_end = {x: -1, y: -1}, queue = [], 
+    def path_queue_add(tiles, cur, dif, trail_end = [-1, -1], queue = [], 
         parents = {}
     )
         next_step = {
-            x: cur.x + dif.x, 
-            y: cur.y + dif.y, 
-            uid: [cur.x + dif.x, cur.y + dif.y]
+            tx: cur.tx + dif[0], 
+            ty: cur.ty + dif[1], 
+            uid: [cur.tx + dif[0], cur.ty + dif[1]]
         }
-        step_dist = sqr(trail_end.x - next_step.x) + 
-            sqr(trail_end.y - next_step.y) 
+        step_dist = sqr(trail_end[0] - next_step.tx) + 
+            sqr(trail_end[1] - next_step.ty) 
         
         if(
             !parents.has_key?(next_step.uid) && 
@@ -107,12 +107,13 @@ class Pawn < DRObject
 
         _path_found = nil
 
-        @path_queue << {x: @tx, y: @ty, z: 0, uid: [@tx, @ty]} 
-        @path_parents[[@tx, @ty]] = {x: @tx, y: @ty, z: 0, uid: [@tx, @ty]}
+        @path_queue << {tx: @tx, ty: @ty, z: 0, uid: [@tx, @ty]} 
+        @path_parents[[@tx, @ty]] = {tx: @tx, ty: @ty, z: 0, uid: [@tx, @ty]}
         
         15.times() do |i|
             if(!@path_queue.empty?() && @path_found.nil?())
                 cur = @path_queue.pop()
+                puts "current: #{cur}"
 
                 if(in_range(cur, @target) <= @path_max_range * @path_max_range)
                     puts "found #{cur}"
@@ -171,12 +172,12 @@ class Pawn < DRObject
         next_step = @path_cur.pop()
 
         dir = [
-            next_step.x - @tx,
-            next_step.y - @ty
+            next_step.tx - @tx,
+            next_step.ty - @ty
         ]
 
-        dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
-        dir.y = (dir.y / dir.y.abs()) if(dir.y != 0)
+        dir[0] = (dir[0] / dir[0].abs()) if(dir[0] != 0)
+        dir[1] = (dir[1] / dir[1].abs()) if(dir[1] != 0)
         
 #        return if(
 #            fight_blocker(
@@ -194,8 +195,8 @@ class Pawn < DRObject
        
         @idle_ticks = 0
         tiles[tile()][@type] = nil
-        @tx = next_step.x
-        @ty = next_step.y
+        set_tx(next_step.tx)
+        set_ty(next_step.ty)
         tiles[tile()][@type] = self 
 
 
@@ -207,7 +208,7 @@ class Pawn < DRObject
 
 
     def assess(tiles, next_pos, original_tile, dir = [0, 0])
-        if(dir.x != 0 && dir.y != 0)
+        if(dir[0] != 0 && dir[1] != 0)
             return (
                 tiles.has_key?(next_pos.uid) && 
                 (
@@ -215,18 +216,18 @@ class Pawn < DRObject
                     tiles[next_pos.uid][:ground].passable
                 ) &&
                 tiles[next_pos.uid][:pawn].nil?() &&
-                tiles.has_key?([next_pos.x, original_tile.y]) && 
+                tiles.has_key?([next_pos.tx, original_tile.ty]) && 
                 (
-                    tiles[[next_pos.x, original_tile.y]][:ground].nil?() || 
-                    tiles[[next_pos.x, original_tile.y]][:ground].passable
+                    tiles[[next_pos.tx, original_tile.ty]][:ground].nil?() || 
+                    tiles[[next_pos.tx, original_tile.ty]][:ground].passable
                 ) && 
-                tiles[[next_pos.x, original_tile.y]][:pawn].nil?() && 
-                tiles.has_key?([original_tile.x, next_pos.y]) && 
+                tiles[[next_pos.tx, original_tile.ty]][:pawn].nil?() && 
+                tiles.has_key?([original_tile.tx, next_pos.ty]) && 
                 (
-                    tiles[[original_tile.x, next_pos.y]][:ground].nil?() ||
-                    tiles[[original_tile.x, next_pos.y]][:ground].passable 
+                    tiles[[original_tile.tx, next_pos.ty]][:ground].nil?() ||
+                    tiles[[original_tile.tx, next_pos.ty]][:ground].passable 
                 ) &&
-                tiles[[original_tile.x, next_pos.y]][:pawn].nil?()
+                tiles[[original_tile.tx, next_pos.ty]][:pawn].nil?()
             )
         end
         
@@ -312,11 +313,6 @@ class Pawn < DRObject
     end
 
 
-    def tile()
-        return [@tx, @ty]
-    end
-
-
     def target=(value)
         clear_path()
         @target = value
@@ -324,8 +320,8 @@ class Pawn < DRObject
 
 
     def in_range(cur, pos)
-        range = (cur.x - pos.x) * (cur.x - pos.x) +
-                (cur.y - pos.y) * (cur.y - pos.y)
+        range = (cur.tx - pos.tx) * (cur.tx - pos.tx) +
+                (cur.ty - pos.ty) * (cur.ty - pos.ty)
 
         return range
     end

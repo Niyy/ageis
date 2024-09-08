@@ -2,17 +2,17 @@ class DRObject
     attr_sprite
     attr_accessor :z, :w, :h, :r, :g, :b, :a, :primitive_marker, :type,
         :faction, :supply, :enemies, :name
-    attr_reader :uid, :x, :y
+    attr_reader :uid, :x, :y, :tx, :ty
 
 
-    def initialize(x: 0, y: 0, z: 0, w: 1, h: 1, r: 0, g: 0, b: 0, 
+    def initialize(tx: 0, ty: 0, z: 0, w: 1, h: 1, r: 0, g: 0, b: 0, 
     consumption: 1, production: 0, max_supply: 1, tick: 0, faction: -1,
     primitive_marker: :solid, type: nil)
         @z = z
         @w = w
         @h = h
-        set_x(x)
-        set_y(y)
+        set_tx(tx)
+        set_ty(ty)
         @r = r
         @g = g
         @b = b
@@ -46,17 +46,17 @@ class DRObject
 
 
     def assess(tiles, next_pos, og, dir = [0, 0])
-        if(dir.x != 0 && dir.y != 0)
+        if(dir[0] != 0 && dir[1] != 0)
             return (
                 tiles.has_key?(next_pos.uid) && 
                 tiles[next_pos.uid].ground.nil?() &&
                 tiles[next_pos.uid].pawn.nil?() &&
-                tiles.has_key?([next_pos.x, og.y]) && 
-                tiles[[next_pos.x, og.y]].ground.nil?() && 
-                tiles[[next_pos.x, og.y]].pawn.nil?() && 
-                tiles.has_key?([og.x, next_pos.y]) && 
-                tiles[[og.x, next_pos.y]].ground.nil?() &&
-                tiles[[og.x, next_pos.y]].pawn.nil?()
+                tiles.has_key?([next_pos.tx, og.ty]) && 
+                tiles[[next_pos.tx, og.ty]].ground.nil?() && 
+                tiles[[next_pos.tx, og.ty]].pawn.nil?() && 
+                tiles.has_key?([og.tx, next_pos.ty]) && 
+                tiles[[og.tx, next_pos.ty]].ground.nil?() &&
+                tiles[[og.tx, next_pos.ty]].pawn.nil?()
             )
         end
         
@@ -86,8 +86,8 @@ class DRObject
 
     def copy()
         return DRObject.new(
-            x: @tx,
-            y: @ty,
+            tx: @tx,
+            ty: @ty,
             z: @z,
             w: @w,
             h: @h,
@@ -118,16 +118,44 @@ class DRObject
     end
 
 
+    def tx=(val)
+        set_tx(val)
+    end
+
+
+    def ty=(val)
+        set_ty(val)
+    end
+
+
     def set_x(val)
         puts "value x: #{val}"
-        @tx = val
-        @x = val * @w 
+        @x = val
+        @tx = (val / @w).floor()
     end
 
 
     def set_y(val)
         puts "value y: #{val}"
+        @y = val
+        @ty = (val / @h).floor()
+    end
+
+
+    def set_tx(val)
+        puts "value x: #{val}"
+        @tx = val
+        @x = val * @w
+    end
+
+
+    def set_ty(val)
+        puts "value x: #{val}"
         @ty = val
-        @y = val * @h 
+        @y = val * @h
+    end
+
+    def tile()
+        return [@tx, @ty]
     end
 end

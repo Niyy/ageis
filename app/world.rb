@@ -17,6 +17,8 @@ class World
         (@h).floor().times() do |y|
             (@w).floor().times() do |x|
                 @tiles[[x, y]] = Tile.new()
+
+#                @render_chuncks = [] if(@render_chunks[[x, y]])
             end
         end
     end

@@ -45,8 +45,8 @@ class Game < View
                 unassigned: {}
             },
             flag: Structure.new(
-                x: (@world.w / 2).floor(),
-                y: (@world.h / 2).floor(),
+                tx: 4,#(@world.w / 2).floor(),
+                ty: 4,#(@world.h / 2).floor(),
                 w: @world.dim,
                 h: @world.dim,
                 z: 10,
@@ -107,12 +107,12 @@ class Game < View
     
 #        @world << @player.flag
 #        @tiles[[@player.flag.x, @player.flag.y]][:ground] = @player.flag
-        @world.add([@player.flag.x, @player.flag.y], :ground, @player.flag)
+        @world.add([@player.flag.tx, @player.flag.ty], :ground, @player.flag)
         spawns = [
-            [@player.flag.x + 1, @player.flag.y],
-            [@player.flag.x - 1, @player.flag.y],
-            [@player.flag.x, @player.flag.y + 1],
-            [@player.flag.x, @player.flag.y - 1]
+            [@player.flag.tx + 1, @player.flag.ty],
+            [@player.flag.tx - 1, @player.flag.ty],
+            [@player.flag.tx, @player.flag.ty + 1],
+            [@player.flag.tx, @player.flag.ty - 1]
         ]
 
         1.times do |i|
@@ -120,11 +120,12 @@ class Game < View
             spawns.delete(a_spawn)
 
             pawn = Pawn.new(
-                x: a_spawn.x,
-                y: a_spawn.y,
+                tx: a_spawn.x,
+                ty: a_spawn.y,
                 faction: "1",
-                w: 1, 
-                h: 1,
+                type: :pawn,
+                w: @world.dim, 
+                h: @world.dim,
                 z: 1,
                 r: 150,
                 g: 150,
@@ -317,60 +318,59 @@ class Game < View
                 return
             end
                 
-#            if(!@world.tiles[[mouse_x, mouse_y]][:pawn].nil?())
-#                @player.selected = @world.tiles[[mouse_x, mouse_y]][:pawn]
-#            elsif(
-#                  !@player.selected.nil?() && 
-#                  @world.tiles[[mouse_x, mouse_y]][:pawn].nil?()
-#                 )
-#                if(inputs.mouse.down)
-#                    @player.selected.target = {
-#                        x: mouse_x, 
-#                        y: mouse_y, 
-#                        z: 0, 
-#                        uid: [mouse_x, mouse_y],
-#                        tile: [mouse_x, mouse_y],
-#                        type: :waypoint
-#                    }
-#                    @player.selected.path_start = state.tick_count 
-#                    @player.selected.path_max_range = 0
-#                    
-#                    if(@player.selected.task)
-#                        @player.selected.task.hit = false if(
-#                            @player.selected.task.start == :fetch
-#                        )
-#                        @player.tasks.unassigned[@player.selected.task.uid] = \
-#                            @player.selected.task
-#                        @player.tasks.assigned.delete(@player.selected.task.uid)
-#                        @player.selected.task = nil
-#                        @player.selected.task_current = nil
-#                    end
-#                end
-#            elsif(
-#                @world.tiles[[mouse_x, mouse_y]][:ground].nil?() && 
-#                !player.tasks.assigned.has_key?([mouse_x, mouse_y]) &&
-#                !player.tasks.unassigned.has_key?([mouse_x, mouse_y]) &&
-#                !@admin_mode
-#            )
-#                pos = find_resource(@resources, :stone)
-#                ntask = player.build_interface.build(@player.selected_structure, 
-#                                                     mouse_x, 
-#                                                     mouse_y,
-#                                                     pos,
-#                                                     world, 
-#                                                     tiles)
-#
-#                if(ntask)
-#                    player.tasks.unassigned[[mouse_x, mouse_y]] = ntask
-#                end
-#            elsif(
-            if(
+            if(!@world.tiles[[mouse_x, mouse_y]][:pawn].nil?())
+                @player.selected = @world.tiles[[mouse_x, mouse_y]][:pawn]
+            elsif(
+                  !@player.selected.nil?() && 
+                  @world.tiles[[mouse_x, mouse_y]][:pawn].nil?()
+                 )
+                if(inputs.mouse.down)
+                    @player.selected.target = {
+                        tx: mouse_x, 
+                        ty: mouse_y, 
+                        z: 0, 
+                        uid: [mouse_x, mouse_y],
+                        tile: [mouse_x, mouse_y],
+                        type: :waypoint
+                    }
+                    @player.selected.path_start = state.tick_count 
+                    @player.selected.path_max_range = 0
+                    
+                    if(@player.selected.task)
+                        @player.selected.task.hit = false if(
+                            @player.selected.task.start == :fetch
+                        )
+                        @player.tasks.unassigned[@player.selected.task.uid] = \
+                            @player.selected.task
+                        @player.tasks.assigned.delete(@player.selected.task.uid)
+                        @player.selected.task = nil
+                        @player.selected.task_current = nil
+                    end
+                end
+            elsif(
+                @world.tiles[[mouse_x, mouse_y]][:ground].nil?() && 
+                !player.tasks.assigned.has_key?([mouse_x, mouse_y]) &&
+                !player.tasks.unassigned.has_key?([mouse_x, mouse_y]) &&
+                !@admin_mode
+            )
+                pos = find_resource(@resources, :stone)
+                ntask = player.build_interface.build(@player.selected_structure, 
+                                                     mouse_x, 
+                                                     mouse_y,
+                                                     pos,
+                                                     world, 
+                                                     tiles)
+
+                if(ntask)
+                    player.tasks.unassigned[[mouse_x, mouse_y]] = ntask
+                end
+            elsif(
                 @world.tiles[[mouse_x, mouse_y]][:ground].nil?() && 
                 @admin_mode
             )
                 @world.add([mouse_x, mouse_y], :ground, Structure.new(
-                    x: mouse_x,
-                    y: mouse_y,
+                    tx: mouse_x,
+                    ty: mouse_y,
                     w: @world.dim,
                     h: @world.dim,
                     z: 0,
@@ -384,8 +384,8 @@ class Game < View
                 )) if(@player.selected_structure == :gate)
 
                 @world.add([mouse_x, mouse_y], :ground, Structure.new(
-                    x: mouse_x,
-                    y: mouse_y, 
+                    tx: mouse_x,
+                    ty: mouse_y, 
                     w: @world.dim,
                     h: @world.dim,
                     z: 0,
@@ -444,36 +444,32 @@ class Game < View
 
 
     def update_active_pawns()
-#        @world.pawns.delete_if do |key, pawn|
-#            _player = @globals.factions[pawn.faction.to_s.to_sym]
-#
-#            if(pawn.supply <= 0)
-#                puts "pawn killed #{pawn.uid}"
-#                @tiles[[pawn.x, pawn.y]][:pawn] = nil
-#                @globals.faction_pawn_count[pawn.faction.to_s.to_sym] -= 1
-#                @globals.wave.delete(pawn.uid)
-#                @world.delete_obj(pawn, :pawn)
-#
-#                true
-#            else
-#                old_pos = {x: pawn.x, y: pawn.y}
-#                pawn.update(tick_count, @world.tiles, _player)
-#
+        @world.pawns.entries.each do |key, pawn|
+            _player = @globals.factions[pawn.faction.to_s.to_sym]
+
+            if(pawn.supply <= 0)
+                puts "pawn killed #{pawn.uid}"
+                @tiles[[pawn.x, pawn.y]][:pawn] = nil
+                @globals.faction_pawn_count[pawn.faction.to_s.to_sym] -= 1
+                @globals.wave.delete(pawn.uid)
+                @world.delete_obj(pawn, :pawn)
+            else
+                old_pos = {x: pawn.x, y: pawn.y}
+                pawn.update(tick_count, @world.tiles, _player)
+
 #                update_tile(pawn, old_pos, spot: :pawn)
-#
-#                false
-#            end
-#        end
+            end
+        end
 
 #        @world.pawns.compact!()
     end
 
 
     def update_tile(obj, old_pos, spot: :pawn)
-        return if(old_pos.x == obj.x && old_pos.y == obj.y)
+        return if(old_pos.tx == obj.tx && old_pos.ty == obj.ty)
 
-        @tiles[[old_pos.x, old_pos.y]][spot] = nil
-        @tiles[[obj.x, obj.y]][spot] = obj
+        @tiles[[old_pos.tx, old_pos.ty]][spot] = nil
+        @tiles[[obj.tx, obj.ty]][spot] = obj
 
         @update = true
     end
@@ -498,43 +494,6 @@ class Game < View
     end
 
 
-    def accessable(pos)
-        return (
-            (
-                @world.tiles.has_key?([pos.x + 1, pos.y]) &&
-                @world.tiles[[pos.x + 1, pos.y]][:ground].nil?()
-            ) || (
-                @world.tiles.has_key?([pos.x - 1, pos.y]) &&
-                @world.tiles[[pos.x - 1, pos.y]][:ground].nil?()
-            ) || (
-                @world.tiles.has_key?([pos.x, pos.y + 1]) &&
-                @world.tiles[[pos.x, pos.y + 1]][:ground].nil?() 
-            ) || (
-                @world.tiles.has_key?([pos.x, pos.y - 1]) &&
-                @world.tiles[[pos.x, pos.y - 1]][:ground].nil?()
-            )
-        )
-    end
-
-
-    def trail_add(cur, dif, trail_end = {x: 0, y: 0}, queue = [], parents = {})
-        next_step = {
-            x: cur.x + dif.x, 
-            y: cur.y + dif.y, 
-            uid: [cur.x + dif.x, cur.y + dif.y]
-        }
-        step_dist = sqr(trail_end.x - next_step.x) + 
-            sqr(trail_end.y - next_step.y) 
-        
-        if(!parents.has_key?(next_step.uid) && 
-            assess(next_step, cur, dif)
-        )
-            queue << next_step.merge({z: step_dist}) 
-            parents[next_step.uid] = cur 
-        end
-    end
-
-
     def plant_stone()
         start = [(rand() * @w).floor(), (rand() * @h).floor()]
 
@@ -544,8 +503,8 @@ class Game < View
         12.times do |i|
             break if(queue.empty?())
             res = Structure.new(
-                x: start.x,
-                y: start.y,
+                tx: start.x,
+                ty: start.y,
                 r: 31,
                 g: 46,
                 b: 46,
