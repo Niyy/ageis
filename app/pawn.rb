@@ -5,7 +5,7 @@ class Pawn < DRObject
 
     def initialize(**argv)
         super
-
+        
         @task = nil
         @speed = 20
         @faction = argv.faction
@@ -17,6 +17,9 @@ class Pawn < DRObject
 
     def update(tick_count, tiles, player, factions = nil, world = nil, 
                globals = nil, audio = nil)
+        get_task(player.tasks)
+        assess_task(player.tasks, tiles)
+        
         create_path(tiles)
         move(tick_count, tiles, world, audio)
     end
@@ -104,8 +107,8 @@ class Pawn < DRObject
 
         _path_found = nil
 
-        @path_queue << {x: @x, y: @y, z: 0, uid: [@x, @y]} 
-        @path_parents[[@x, @y]] = {x: @x, y: @y, z: 0, uid: [@x, @y]}
+        @path_queue << {x: @tx, y: @ty, z: 0, uid: [@tx, @ty]} 
+        @path_parents[[@tx, @ty]] = {x: @tx, y: @ty, z: 0, uid: [@tx, @ty]}
         
         15.times() do |i|
             if(!@path_queue.empty?() && @path_found.nil?())
@@ -168,8 +171,8 @@ class Pawn < DRObject
         next_step = @path_cur.pop()
 
         dir = [
-            next_step.x - @x,
-            next_step.y - @y
+            next_step.x - @tx,
+            next_step.y - @ty
         ]
 
         dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
@@ -191,8 +194,8 @@ class Pawn < DRObject
        
         @idle_ticks = 0
         tiles[tile()][@type] = nil
-        @x = next_step.x
-        @y = next_step.y
+        @tx = next_step.x
+        @ty = next_step.y
         tiles[tile()][@type] = self 
 
 
@@ -273,8 +276,44 @@ class Pawn < DRObject
     end
 
 
+    def get_task(tasks)
+        return if(@target || @task)
+        
+        clear_path()
+        @task = tasks.pop()
+    end
+
+
+    def assess_task(world, tiles)
+        return if(!@task || !@target)
+
+        if(@target.check_end_state(@task))
+            @task = nil
+            @target = nil
+            clear_path()
+            return
+        end
+
+        @task.requirments.entries.each() do |req, need|
+            if(req == :has)
+                @target = @task.target if(@inventory[need.type])
+                @target = world.find(need) if(!@inventory[need.type])
+            end
+        end
+    end
+
+
+    def check_end_state(state)
+        state.entries.each() do |entry, value|
+            return false if(entry == :supply && value != @supply)
+        end
+
+        return true 
+    end
+
+
     def tile()
-        return [@x, @y]
+        return [@tx, @ty]
     end
 
 

@@ -1,18 +1,18 @@
 class DRObject
     attr_sprite
-    attr_accessor :x, :y, :z, :w, :h, :r, :g, :b, :a, :primitive_marker, :type,
+    attr_accessor :z, :w, :h, :r, :g, :b, :a, :primitive_marker, :type,
         :faction, :supply, :enemies, :name
-    attr_reader :uid
+    attr_reader :uid, :x, :y
 
 
     def initialize(x: 0, y: 0, z: 0, w: 1, h: 1, r: 0, g: 0, b: 0, 
     consumption: 1, production: 0, max_supply: 1, tick: 0, faction: -1,
     primitive_marker: :solid, type: nil)
-        @x = x
-        @y = y
         @z = z
         @w = w
         @h = h
+        set_x(x)
+        set_y(y)
         @r = r
         @g = g
         @b = b
@@ -69,8 +69,8 @@ class DRObject
 
 
     def serialize()
-        {uid: @uid, x: @x, y: @y, w: @w, h: @h, r: @r, g: @g, b: @b, a: @a, 
-         primitive_marker: @primitive_marker}
+        {uid: @uid, x: @x, y: @y, tx: @tx, ty: @ty, w: @w, h: @h, r: @r, g: @g, 
+        b: @b, a: @a, primitive_marker: @primitive_marker}
     end
 
 
@@ -86,8 +86,8 @@ class DRObject
 
     def copy()
         return DRObject.new(
-            x: @x,
-            y: @y,
+            x: @tx,
+            y: @ty,
             z: @z,
             w: @w,
             h: @h,
@@ -105,5 +105,29 @@ class DRObject
 
     def out()
         serialize()
+    end
+
+
+    def x=(val)
+        set_x(val)
+    end
+
+
+    def y=(val)
+        set_y(val)
+    end
+
+
+    def set_x(val)
+        puts "value x: #{val}"
+        @tx = val
+        @x = val * @w 
+    end
+
+
+    def set_y(val)
+        puts "value y: #{val}"
+        @ty = val
+        @y = val * @h 
     end
 end

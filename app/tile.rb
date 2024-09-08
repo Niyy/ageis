@@ -19,6 +19,6 @@ class Tile
 
 
     def has_key?(key)
-        return has_key?(key)
+        return @contents.has_key?(key)
     end
 end
