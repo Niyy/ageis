@@ -1,3 +1,3 @@
-def sqr(number)
+def sq(number)
     return number * number
 end

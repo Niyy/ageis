@@ -1,6 +1,6 @@
 class Pawn < DRObject
     attr_accessor :path_start, :path_max_range, :task
-    attr_reader :target, :path_cur, :path_end, :path_start
+    attr_reader :target, :path_cur, :path_end, :path_start, :path_parents
 
 
     def initialize(**argv)
@@ -44,9 +44,11 @@ class Pawn < DRObject
             ty: cur.ty + dif[1], 
             uid: [cur.tx + dif[0], cur.ty + dif[1]]
         }
-        step_dist = sqr(trail_end[0] - next_step.tx) + 
-            sqr(trail_end[1] - next_step.ty) 
-        
+        step_dist = sq(trail_end[0] - next_step.tx) + 
+            sq(trail_end[1] - next_step.ty) 
+
+        step_dist += 2 if(dif[0] != 0 && dif[1] != 0)
+
         if(
             !parents.has_key?(next_step.uid) && 
             (
@@ -120,6 +122,13 @@ class Pawn < DRObject
                     _path_found = cur 
                     break
                 end
+
+#                if(tiles[cur.uid] && tiles[cur.uid][:paths] && tiles[cur.uid][:paths][@target.tile])
+#                    step_dist = sq(trail_end[0] - next_step.tx) + 
+#                        sq(trail_end[1] - next_step.ty) 
+#                    queue << next_step.merge({z: step_dist + cur.z}) 
+#                    parents[tiles[cur.uid].paths[@target.tile].uid] = cur   
+#                end
                 
                 path_queue_add(tiles, cur, [0, 1], @target.tile, @path_queue, 
                                @path_parents)
@@ -149,6 +158,7 @@ class Pawn < DRObject
             while(@path_parents[child.uid].uid != child.uid)
                 puts "adding #{child}"
                 @path_cur << child 
+#                tiles[child.uid][:path] = @target.tile
                 child = @path_parents[child.uid]
             end
 

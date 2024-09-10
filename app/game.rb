@@ -1,5 +1,6 @@
 $uid_file ||= 0
 $paused ||= false
+$debug ||= true 
 
 
 def get_uid()
@@ -247,6 +248,17 @@ class Game < View
             h: @h, 
             path: :view
         }.sprite!
+
+        if(@player.selected && $debug)
+            half = @world.dim / 2
+            outputs.primitives << @player.selected.path_parents.entries().map do |key, value|
+                [
+                    {x: key[0] * @world.dim, y: key[1] * @world.dim - 4, text: key, size_px: 12, r: 255}.label!,
+                    {x: key[0] * @world.dim, y: key[1] * @world.dim - 12, text: value.z, size_px: 12, r: 255}.label!,
+                    {x: key[0] * @world.dim + half, y: key[1] * @world.dim + half, x2: value.tx * @world.dim + half, y2: value.ty * @world.dim + half, g: 255}.line!
+                ]
+            end
+        end
 
         if(@player.selected)
             outputs[:view].debug << {x: @player.selected.x - 1, 

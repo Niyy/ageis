@@ -3,7 +3,7 @@ class Tile
 
 
     def initialize()
-        @contents = {pawn: nil, ground: nil, flora: nil}
+        @contents = {pawn: nil, ground: nil, flora: nil, paths: {}}
         @z = 0 
     end
 
