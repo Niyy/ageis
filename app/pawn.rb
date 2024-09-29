@@ -199,10 +199,10 @@ class Pawn < DRObject
 #        return if(can_not_move(tiles, next_step, tick_count, dir))
        
         @idle_ticks = 0
-        tiles[tile()][@type] = nil
+        tiles[tile()] >> self
         set_tx(next_step.tx)
         set_ty(next_step.ty)
-        tiles[tile()][@type] = self 
+        tiles[tile()] << self 
 
 
 #        check_for_repathing(tiles)

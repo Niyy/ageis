@@ -11,6 +11,7 @@ class World
         @tiles = {}
         @render_chuncks = []
         @pawns = {}
+        @messages = []
 
         puts 'here man'
 
@@ -50,10 +51,12 @@ class World
     end
 
 
-    def add(tile, position, obj)
-        return if(!@tiles[tile] || @tiles[tile][position])
+    def add(tile, obj)
+        if(!@tiles[tile] || @tiles[tile][obj.uid] || @tiles[tile].length > 0)
+            @messages << 'Tile is occupied'
+        end
         
-        @tiles[tile][position] = obj
+        @tiles[tile][obj.uid] = obj
         @pawns[obj.uid] = obj if(obj.type == :pawn)
         @objs[obj.uid] = obj
     end
@@ -64,22 +67,22 @@ class World
     end
 
     
-    def delete_on(tile, position)
-        _delete = @tiles[tile][position]
+    def delete_on(tile, uid)
+        _delete = @tiles[tile][uid]
 
         return if(!_delete)
 
         @pawns.delete(_delete.uid)
         @objs.delete(_delete)
-        @tiles[tile][position] = nil
+        @tiles[tile].delete(uid)
     end
 
 
-    def delete_obj(obj, position)
-         _delete = @tiles[obj.tile()][position]
+    def delete_obj(obj)
+        _delete = @tiles[obj.tile()][obj.uid]
 
         @pawns.delete(_delete.uid)
         @objs.delete(_delete)
-        @tiles[obj.tile()][position] = nil       
+        @tiles[obj.tile()][obj.uid]     
     end
 end
