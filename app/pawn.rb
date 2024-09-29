@@ -1,12 +1,11 @@
 class Pawn < DRObject
-    attr_accessor :path_start, :path_max_range, :task
+    attr_accessor :path_start, :path_max_range
     attr_reader :target, :path_cur, :path_end, :path_start, :path_parents
 
 
     def initialize(**argv)
         super
         
-        @task = nil
         @speed = 20
         @faction = argv.faction
 
@@ -17,10 +16,7 @@ class Pawn < DRObject
 
     def update(tick_count, tiles, player, factions = nil, world = nil, 
                globals = nil, audio = nil)
-        get_task(player.tasks)
-        assess_task(player.tasks, tiles)
-        
-        create_path(tiles)
+        create_path(tiles, player)
         move(tick_count, tiles, world, audio)
     end
 
@@ -33,6 +29,13 @@ class Pawn < DRObject
         @path_queue = Min_Tree.new()
         @path_cur = []
         @path_start = -1
+    end
+
+
+    def soft_clear_path()
+        @path_parents = {}
+        @path_queue = Min_Tree.new()
+        @path_cur = []
     end
 
 
@@ -104,7 +107,7 @@ class Pawn < DRObject
 
 
 
-    def create_path(tiles)
+    def create_path(tiles, player)
         return if(@path_end || @target.nil?())
 
         _path_found = nil
@@ -164,20 +167,12 @@ class Pawn < DRObject
 
             return
         end
-
-        if(@path_queue.empty?() && @path_found.nil?())
-            tasks.assigned.delete(@task.uid) if(tasks && @task)
-            @task = nil
-            @task_current = nil
-        end
     end
 
 
     def move(tick_count, tiles, world, audio)
         return if(@path_cur.empty?() || @path_end.nil?() || 
                   (tick_count - @path_start) % @speed != 0)
-        puts "moving hehe"
-
 
         next_step = @path_cur.pop()
 
@@ -200,7 +195,7 @@ class Pawn < DRObject
 #            )
 #        )
 #        return if(move_around(tiles, next_step, tick_count, dir))
-#        return if(init_repath(tiles, next_step, dir, tick_count))
+        return if(init_repath(tiles, next_step, dir, tick_count))
 #        return if(can_not_move(tiles, next_step, tick_count, dir))
        
         @idle_ticks = 0
@@ -214,6 +209,15 @@ class Pawn < DRObject
 
         return false if(@path_cur.empty?())
         return true
+    end
+
+
+    def init_repath(tiles, next_step, original_tile, dir, tick_count)
+        if(!assess(tiles, next_step, original_tile, dir))
+            return true
+        end
+
+        return false
     end
 
 
@@ -284,33 +288,6 @@ class Pawn < DRObject
                                                        to_sym)
             )
         )
-    end
-
-
-    def get_task(tasks)
-        return if(@target || @task)
-        
-        clear_path()
-        @task = tasks.pop()
-    end
-
-
-    def assess_task(world, tiles)
-        return if(!@task || !@target)
-
-        if(@target.check_end_state(@task))
-            @task = nil
-            @target = nil
-            clear_path()
-            return
-        end
-
-        @task.requirments.entries.each() do |req, need|
-            if(req == :has)
-                @target = @task.target if(@inventory[need.type])
-                @target = world.find(need) if(!@inventory[need.type])
-            end
-        end
     end
 
 

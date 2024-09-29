@@ -3,5 +3,6 @@ class View
 
 
     def tick()
+        return nil
     end
 end
