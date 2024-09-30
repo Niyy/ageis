@@ -11,8 +11,11 @@ def get_uid()
 end
 
 
-def create_view(args, view, current_view)
-    view = Game.new(args) if(current_view == :game)
+def create_view(args, views, current_view)
+    views[current_view] = Game.new(args) if(current_view == :game)
+    views[current_view] = Debuggery.new(args) if(current_view == :debuggery)
+    puts 'view 01'
+    puts views
 end
 
 
@@ -27,12 +30,10 @@ def tick(args)
         debuggery: nil
     }
 
-    if($views.current == :debuggery)
-        $views.debuggery ||= Debuggery.new(args)
-    end
-
     if($views.current != $views.last)
         puts "--view change--> #{$views.current}"
+        create_view(args, $views, $views.current)
+        puts $views
         $view = $views[$views.current]
         $views.last = $views.current
     end
