@@ -1,5 +1,6 @@
 class World
     attr_accessor :pawns, :tiles, :dim, :w, :h
+    attr_reader :objs
 
 
     def initialize(w: 64, h: 64, dim: 1, render_chunk_size: 32)
@@ -17,7 +18,18 @@ class World
 
         (@h).floor().times() do |y|
             (@w).floor().times() do |x|
-                @tiles[[x, y]] = Tile.new()
+                background = {
+                    x: x, 
+                    y: y, 
+                    w: @dim, 
+                    h: @dim,
+                    z: 0,
+                    path: 'sprites/square/white.png',
+                    uid: "x#{x}y#{y}"
+                }
+                @tiles[[x, y]] = Tile.new([x, y])
+
+                add([x, y], background)
 
 #                @render_chuncks = [] if(@render_chunks[[x, y]])
             end

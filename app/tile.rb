@@ -8,14 +8,14 @@ class Tile
         @contents = {}
         @z = 0 
 
-        @north = [pos, pos + 1]
-        @north_eas = [pos + 1, pos + 1]
-        @east = [pos + 1, pos]
-        @south_east = [pos + 1, pos - 1]
-        @south = [pos, pos - 1]
-        @south_west = [pos - 1, pos - 1]
-        @west = [pos - 1, pos]
-        @north_west = [pos - 1, pos + 1]
+        @north = [pos.x, pos.y + 1]
+        @north_eas = [pos.x + 1, pos.y + 1]
+        @east = [pos.x + 1, pos.y]
+        @south_east = [pos.x + 1, pos.y - 1]
+        @south = [pos.x, pos.y - 1]
+        @south_west = [pos.x - 1, pos.y - 1]
+        @west = [pos.x - 1, pos.y]
+        @north_west = [pos.x - 1, pos.y + 1]
     end
 
 
