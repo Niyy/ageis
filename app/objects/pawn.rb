@@ -1,4 +1,4 @@
-class Pawn < DRObject
+class Pawn < DR_Object
     attr_accessor :path_start, :path_max_range, :task
     attr_reader :target, :path_cur, :path_end, :path_start
 
@@ -7,7 +7,7 @@ class Pawn < DRObject
         super
         
         @task = nil
-        @speed = 20
+        @speed = 60
         @faction = argv.faction
 
         # Pathing
@@ -15,18 +15,14 @@ class Pawn < DRObject
     end
 
 
-    def update(tick_count, tiles, player, factions = nil, world = nil, 
-               globals = nil, audio = nil)
-        get_task(player.tasks)
-        assess_task(player.tasks, tiles)
-        
-        create_path(tiles)
-        move(tick_count, tiles, world, audio)
+    def update(tick_count, world)
+        create_path(world.tiles)
+        move(tick_count, world)
     end
 
 
     def clear_path()
-        @path_max_range = 1
+        @path_max_range = 0
         @target = nil
         @path_end = nil
         @path_parents = {}
@@ -114,27 +110,29 @@ class Pawn < DRObject
             if(!@path_queue.empty?() && @path_found.nil?())
                 cur = @path_queue.pop()
 
+                puts "in_range #{@target}"
+
                 if(in_range(cur, @target) <= @path_max_range * @path_max_range)
                     puts "found #{cur}"
                     _path_found = cur 
                     break
                 end
                 
-                path_queue_add(tiles, cur, [0, 1], @target.tile, @path_queue, 
+                path_queue_add(tiles, cur, [0, 1], @target, @path_queue, 
                                @path_parents)
-                path_queue_add(tiles, cur, [0, -1], @target.tile, @path_queue, 
+                path_queue_add(tiles, cur, [0, -1], @target, @path_queue, 
                                @path_parents)
-                path_queue_add(tiles, cur, [1, 0], @target.tile, @path_queue, 
+                path_queue_add(tiles, cur, [1, 0], @target, @path_queue, 
                                @path_parents)
-                path_queue_add(tiles, cur, [-1, 0], @target.tile, @path_queue, 
+                path_queue_add(tiles, cur, [-1, 0], @target, @path_queue, 
                                @path_parents)
-                path_queue_add(tiles, cur, [1, 1], @target.tile, @path_queue, 
+                path_queue_add(tiles, cur, [1, 1], @target, @path_queue, 
                                @path_parents)
-                path_queue_add(tiles, cur, [1, -1], @target.tile, @path_queue, 
+                path_queue_add(tiles, cur, [1, -1], @target, @path_queue, 
                                @path_parents)
-                path_queue_add(tiles, cur, [-1, 1], @target.tile, @path_queue, 
+                path_queue_add(tiles, cur, [-1, 1], @target, @path_queue, 
                                @path_parents)
-                path_queue_add(tiles, cur, [-1, -1], @target.tile, @path_queue, 
+                path_queue_add(tiles, cur, [-1, -1], @target, @path_queue, 
                                @path_parents)
             end
         end
@@ -162,11 +160,11 @@ class Pawn < DRObject
     end
 
 
-    def move(tick_count, tiles, world, audio)
+    def move(tick_count, world)
         return if(@path_cur.empty?() || @path_end.nil?() || 
-                  (tick_count - @path_start) % @speed != 0)
+            (tick_count - @path_start) % @speed != 0
+        )
         puts "moving hehe"
-
 
         next_step = @path_cur.pop()
 
@@ -193,10 +191,15 @@ class Pawn < DRObject
 #        return if(can_not_move(tiles, next_step, tick_count, dir))
        
         @idle_ticks = 0
-        tiles[tile()][@type] = nil
-        @tx = next_step.x
-        @ty = next_step.y
-        tiles[tile()][@type] = self 
+        prior_x = @x
+        prior_y = @y
+        @x = next_step.x
+        @y = next_step.y
+
+        puts "prior pos: #{[prior_x, prior_y]}"
+        puts "current pos: #{[@x, @y]}"
+
+        world.update(self, [prior_x, prior_y])
 
 
 #        check_for_repathing(tiles)
@@ -211,20 +214,23 @@ class Pawn < DRObject
             return (
                 tiles.has_key?(next_pos.uid) && 
                 (
-                    tiles[next_pos.uid][:ground].nil?() || 
-                    tiles[next_pos.uid][:ground].passable
+                    !tiles[[original_tile.x, next_pos.y]][:structure] ||
+                    tiles[next_pos.uid][:structure].values.length == 0# || 
+#                    tiles[next_pos.uid][:structure].passable
                 ) &&
                 tiles[next_pos.uid][:pawn].nil?() &&
                 tiles.has_key?([next_pos.x, original_tile.y]) && 
                 (
-                    tiles[[next_pos.x, original_tile.y]][:ground].nil?() || 
-                    tiles[[next_pos.x, original_tile.y]][:ground].passable
+                    !tiles[[original_tile.x, next_pos.y]][:structure] ||
+                    tiles[[next_pos.x, original_tile.y]][:structure].values.length == 0# || 
+#                    tiles[[next_pos.x, original_tile.y]][:structure].passable
                 ) && 
                 tiles[[next_pos.x, original_tile.y]][:pawn].nil?() && 
                 tiles.has_key?([original_tile.x, next_pos.y]) && 
                 (
-                    tiles[[original_tile.x, next_pos.y]][:ground].nil?() ||
-                    tiles[[original_tile.x, next_pos.y]][:ground].passable 
+                    !tiles[[original_tile.x, next_pos.y]][:structure] ||
+                    tiles[[original_tile.x, next_pos.y]][:structure].values.length == 0# ||
+#                    tiles[[original_tile.x, next_pos.y]][:structure].passable 
                 ) &&
                 tiles[[original_tile.x, next_pos.y]][:pawn].nil?()
             )

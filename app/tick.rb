@@ -11,6 +11,11 @@ def get_uid()
 end
 
 
+def sqr(x)
+    return x * x
+end
+
+
 def create_view(args, views, current_view)
     views[current_view] = Game.new(args) if(current_view == :game)
     views[current_view] = Debuggery.new(args) if(current_view == :debuggery)

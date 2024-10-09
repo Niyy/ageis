@@ -1,13 +1,13 @@
-class DRObject
-    attr_sprite
+class DR_Object
     attr_accessor :z, :w, :h, :r, :g, :b, :a, :primitive_marker, :type,
-        :faction, :supply, :enemies, :name
+        :faction, :name, :static
     attr_reader :uid, :x, :y
+    attr_sprite
 
 
-    def initialize(x: 0, y: 0, z: 0, w: 1, h: 1, r: 0, g: 0, b: 0, 
-    consumption: 1, production: 0, max_supply: 1, tick: 0, faction: -1,
-    primitive_marker: :solid, type: nil)
+    def initialize(x: 0, y: 0, z: 0, w: 1, h: 1, r: 0, g: 0, b: 0, path: 'sprites/circle/white.rb', 
+        faction: -1, primitive_marker: :solid, type: :dr_object, static: true
+    )
         @z = z
         @w = w
         @h = h
@@ -16,55 +16,17 @@ class DRObject
         @r = r
         @g = g
         @b = b
-        @max_supply = max_supply
-        @consumption = consumption 
-        @production = production
-        @da = 255 / @max_supply
-        @a = @da * @max_supply
-        @supply = @max_supply
-        @tick = tick
+        @a = 255
         @primitive_marker = primitive_marker
         @uid = get_uid()
         @type = type
         @faction = faction
-    end
-
-    
-    def reduce_supply(by = 1)
-        if(@supply > 0)
-            @supply -= by
-            return by
-        end
-
-        return 0
+        @path = path
+        @static = static
     end
 
 
-    def update()
-        supply += @production 
-    end
-
-
-    def assess(tiles, next_pos, og, dir = [0, 0])
-        if(dir.x != 0 && dir.y != 0)
-            return (
-                tiles.has_key?(next_pos.uid) && 
-                tiles[next_pos.uid].ground.nil?() &&
-                tiles[next_pos.uid].pawn.nil?() &&
-                tiles.has_key?([next_pos.x, og.y]) && 
-                tiles[[next_pos.x, og.y]].ground.nil?() && 
-                tiles[[next_pos.x, og.y]].pawn.nil?() && 
-                tiles.has_key?([og.x, next_pos.y]) && 
-                tiles[[og.x, next_pos.y]].ground.nil?() &&
-                tiles[[og.x, next_pos.y]].pawn.nil?()
-            )
-        end
-        
-        return (
-            tiles.has_key?(next_pos.uid) && 
-            tiles[next_pos.uid].ground.nil?() &&
-            tiles[next_pos.uid].pawn.nil?()
-        )
+    def update(tick_count, world)
     end
 
 
@@ -93,9 +55,6 @@ class DRObject
             h: @h,
             g: @g,
             b: @b,
-            max_supply: @max_supply,
-            consumption: @consumption,
-            production: @production,
             tick: @tick,
             primitive_marker: @primitive_marker,
             type: @type
@@ -119,15 +78,13 @@ class DRObject
 
 
     def set_x(val)
-        puts "value x: #{val}"
         @tx = val
-        @x = val * @w 
+        @x = val 
     end
 
 
     def set_y(val)
-        puts "value y: #{val}"
         @ty = val
-        @y = val * @h 
+        @y = val
     end
 end
