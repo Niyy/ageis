@@ -103,14 +103,14 @@ class Pawn < DR_Object
 
         _path_found = nil
 
-        @path_queue << {x: @tx, y: @ty, z: 0, uid: [@tx, @ty]} 
-        @path_parents[[@tx, @ty]] = {x: @tx, y: @ty, z: 0, uid: [@tx, @ty]}
+        @path_queue << {x: @x, y: @y, z: 0, uid: [@x, @y]} 
+        @path_parents[[@x, @y]] = {x: @x, y: @y, z: 0, uid: [@x, @y]}
         
         15.times() do |i|
             if(!@path_queue.empty?() && @path_found.nil?())
                 cur = @path_queue.pop()
 
-                puts "in_range #{@target}"
+                puts "in_range #{in_range(cur, @target)}"
 
                 if(in_range(cur, @target) <= @path_max_range * @path_max_range)
                     puts "found #{cur}"
@@ -169,8 +169,8 @@ class Pawn < DR_Object
         next_step = @path_cur.pop()
 
         dir = [
-            next_step.x - @tx,
-            next_step.y - @ty
+            next_step.x - @x,
+            next_step.y - @y
         ]
 
         dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
@@ -211,36 +211,38 @@ class Pawn < DR_Object
 
     def assess(tiles, next_pos, original_tile, dir = [0, 0])
         if(dir.x != 0 && dir.y != 0)
+            puts "next_pos: #{next_pos}"
+            puts "original_tile: #{original_tile}"
             return (
                 tiles.has_key?(next_pos.uid) && 
                 (
-                    !tiles[[original_tile.x, next_pos.y]][:structure] ||
+                    !tiles[next_pos.uid][:structure] ||
                     tiles[next_pos.uid][:structure].values.length == 0# || 
 #                    tiles[next_pos.uid][:structure].passable
                 ) &&
-                tiles[next_pos.uid][:pawn].nil?() &&
-                tiles.has_key?([next_pos.x, original_tile.y]) && 
                 (
-                    !tiles[[original_tile.x, next_pos.y]][:structure] ||
-                    tiles[[next_pos.x, original_tile.y]][:structure].values.length == 0# || 
-#                    tiles[[next_pos.x, original_tile.y]][:structure].passable
-                ) && 
-                tiles[[next_pos.x, original_tile.y]][:pawn].nil?() && 
-                tiles.has_key?([original_tile.x, next_pos.y]) && 
-                (
-                    !tiles[[original_tile.x, next_pos.y]][:structure] ||
-                    tiles[[original_tile.x, next_pos.y]][:structure].values.length == 0# ||
-#                    tiles[[original_tile.x, next_pos.y]][:structure].passable 
-                ) &&
-                tiles[[original_tile.x, next_pos.y]][:pawn].nil?()
+                    tiles.has_key?([next_pos.x, original_tile.y]) && 
+                    (
+                        !tiles[[next_pos.x, original_tile.y]][:structure] ||
+                        tiles[[next_pos.x, original_tile.y]][:structure].values.length == 0# || 
+    #                    tiles[[next_pos.x, original_tile.y]][:structure].passable
+                    ) || 
+                    tiles.has_key?([original_tile.x, next_pos.y]) && 
+                    (
+                        !tiles[[original_tile.x, next_pos.y]][:structure] ||
+                        tiles[[original_tile.x, next_pos.y]][:structure].values.length == 0# ||
+    #                    tiles[[original_tile.x, next_pos.y]][:structure].passable 
+                    ) 
+                )
             )
         end
         
         return (
             tiles.has_key?(next_pos.uid) && 
             (
-                !tiles[next_pos.uid][:ground] || 
-                tiles[next_pos.uid][:ground].passable
+                !tiles[next_pos.uid][:structure] || 
+                tiles[next_pos.uid][:structure].values.length == 0# ||
+#                tiles[next_pos.uid][:ground].passable
             ) &&
             tiles[next_pos.uid][:pawn].nil?()
         )
@@ -319,7 +321,7 @@ class Pawn < DR_Object
 
 
     def tile()
-        return [@tx, @ty]
+        return [@x, @y]
     end
 
 

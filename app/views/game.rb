@@ -34,13 +34,14 @@ class Game < View
     def input()
         @cursor_pos = @world.screen_to_map(inputs.mouse)
 
-        if(inputs.mouse.button_left && @world.valid_add(@cursor_pos))
-            @world.add(DR_Object.new(
+        if(inputs.mouse.button_left && @world.valid_add(@cursor_pos) && @world.tile_filled?(@cursor_pos, :structure, 0))
+            @world.add(Structure.new(
                 x: @cursor_pos.x, 
                 y: @cursor_pos.y, 
                 w: @world.dim, 
                 h: @world.dim, 
-                path: 'sprites/square/black.png'
+                path: 'sprites/square/black.png',
+                primitive_marker: :sprite
             ))            
         end
     end

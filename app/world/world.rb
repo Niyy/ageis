@@ -39,6 +39,9 @@ class World
         x = obj.x
         y = obj.y
 
+        puts "tile key #{[x,y]}"
+        puts "tile #{@tiles[[x,y]]}"
+
         @tiles[[x, y]][obj.type] = {} if(!@tiles[[x, y]][obj.type])
         @tiles[[x, y]][obj.type][obj.uid] = obj
         @nonstatic[obj.uid] = obj if(!obj.static)
@@ -104,5 +107,12 @@ class World
         end
 
         return _out
+    end
+
+
+    def tile_filled?(position, type, passing_qty)
+        return true if(!(@tiles[position] && @tiles[position][type]))
+
+        return @tiles[position][type].values.length <= passing_qty
     end
 end
