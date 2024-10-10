@@ -151,12 +151,6 @@ class Pawn < DR_Object
 
             return
         end
-
-        if(@path_queue.empty?() && @path_found.nil?())
-            tasks.assigned.delete(@task.uid) if(tasks && @task)
-            @task = nil
-            @task_current = nil
-        end
     end
 
 
@@ -217,21 +211,21 @@ class Pawn < DR_Object
                 tiles.has_key?(next_pos.uid) && 
                 (
                     !tiles[next_pos.uid][:structure] ||
-                    tiles[next_pos.uid][:structure].values.length == 0# || 
-#                    tiles[next_pos.uid][:structure].passable
+                    tiles[next_pos.uid][:structure].values.length == 0 || 
+                    tiles[next_pos.uid][:structure].values[0].passable 
                 ) &&
                 (
                     tiles.has_key?([next_pos.x, original_tile.y]) && 
                     (
                         !tiles[[next_pos.x, original_tile.y]][:structure] ||
-                        tiles[[next_pos.x, original_tile.y]][:structure].values.length == 0# || 
-    #                    tiles[[next_pos.x, original_tile.y]][:structure].passable
+                        tiles[[next_pos.x, original_tile.y]][:structure].values.length == 0 ||
+                        tiles[[next_pos.x, original_tile.y]][:structure].values[0].passable 
                     ) || 
                     tiles.has_key?([original_tile.x, next_pos.y]) && 
                     (
                         !tiles[[original_tile.x, next_pos.y]][:structure] ||
-                        tiles[[original_tile.x, next_pos.y]][:structure].values.length == 0# ||
-    #                    tiles[[original_tile.x, next_pos.y]][:structure].passable 
+                        tiles[[original_tile.x, next_pos.y]][:structure].values.length == 0 ||
+                        tiles[[original_tile.x, next_pos.y]][:structure].values[0].passable 
                     ) 
                 )
             )
@@ -241,8 +235,8 @@ class Pawn < DR_Object
             tiles.has_key?(next_pos.uid) && 
             (
                 !tiles[next_pos.uid][:structure] || 
-                tiles[next_pos.uid][:structure].values.length == 0# ||
-#                tiles[next_pos.uid][:ground].passable
+                tiles[next_pos.uid][:structure].values.length == 0 ||
+                tiles[next_pos.uid][:structure].values[0].passable 
             ) &&
             tiles[next_pos.uid][:pawn].nil?()
         )
