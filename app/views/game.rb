@@ -5,13 +5,14 @@ class Game < View
     def initialize(args)
         self.args = args
         puts 'hello my good sir.'
-        @world = World.new(args, w: 10, h: 10, dim: 64)
+        @screen_offset = [300, 0]
+        @world = World.new(args, @screen_offset, w: 10, h: 10, dim: 64)
         @cursor_pos = [0, 0]
 
         pawn = Pawn.new(
-            w: @world.dim, 
-            h: @world.dim, 
-            path: 'sprite/circle/yellow.rb',
+            w: @world.width, 
+            h: @world.height, 
+            path: 'sprites/isometric/yellow.png',
             static: false
         )
         pawn.target = [2, 2]
@@ -32,15 +33,23 @@ class Game < View
 
 
     def input()
-        @cursor_pos = @world.screen_to_map(inputs.mouse)
+        mouse_pos = [inputs.mouse.x, inputs.mouse.y]
+        mouse_pos.x -= @screen_offset.x
+        mouse_pos.y -= @screen_offset.y
+        @cursor_pos = @world.screen_to_iso(mouse_pos)
+
+        if(inputs.mouse.click)
+            puts "screen #{[inputs.mouse.x, inputs.mouse.y]}, pos #{@cursor_pos}"
+        end
+
 
         if(inputs.mouse.button_left && @world.valid_add(@cursor_pos) && @world.tile_filled?(@cursor_pos, :structure, 0))
             @world.add(Structure.new(
                 x: @cursor_pos.x, 
                 y: @cursor_pos.y, 
-                w: @world.dim, 
-                h: @world.dim, 
-                path: 'sprites/square/black.png',
+                w: @world.width, 
+                h: @world.height, 
+                path: 'sprites/isometric/black.png',
                 primitive_marker: :sprite
             ))            
         end
@@ -51,7 +60,7 @@ class Game < View
         outputs[:view].transient!
 #        outputs[:view].sprites << @world.objs.branches
 #        outputs.sprites << {x: 0, y: 0, w: 1280, h: 720, path: :view}
-        outputs.sprites << @world.render(args)
+        outputs.sprites << @world.render(args, @screen_offset)
         outputs.labels << {x: 0, y: 700, text: @cursor_pos, r: 0}
     end
 

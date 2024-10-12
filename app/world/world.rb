@@ -1,8 +1,12 @@
 class World
-    attr_reader :objs, :tiles, :dim, :bounds, :nonstatic
+    attr_reader :objs, :tiles, :dim, :bounds, :nonstatic, :width, :height
 
-    def initialize(args, w: 32, h: 32, dim: 16)
+    def initialize(args, screen_offset, w: 32, h: 32, dim: 16)
         @dim = dim
+        @width = dim
+        @height = dim / 2
+        @width_half = dim / 2
+        @height_half = @height / 2
         @bounds = [w, h]
         @objs = {}
         @tiles = {}
@@ -16,11 +20,11 @@ class World
             h.times() do |y|
                 @tiles[[x, y]] = {}
                 args.outputs[@static].primitives << {
-                    x: x * @dim, 
-                    y: y * @dim, 
-                    w: @dim, 
-                    h: @dim, 
-                    path: 'sprites/solids/square-blue.png'
+                    x: iso_x(x, y, screen_offset), 
+                    y: iso_y(x, y, screen_offset), 
+                    w: @width, 
+                    h: @height, 
+                    path: 'sprites/isometric/blue.png'
                 }.sprite!
             end
         end
@@ -85,11 +89,11 @@ class World
     end
    
 
-    def render(args)
+    def render(args, screen_offset)
         _out = []
 
         _out << {
-            x: 0, 
+            x: screen_offset, 
             y: 0, 
             w: @dim * @bounds[0], 
             h: @dim * @bounds[1], 
@@ -97,8 +101,8 @@ class World
         }
         _out << @objs.values.map() do |obj|
             {
-                x: obj.x * @dim,
-                y: obj.y * @dim,
+                x: iso_x(obj.x, obj.y, screen_offset),
+                y: iso_y(obj.x, obj.y, screen_offset),
                 w: obj.w,
                 h: obj.h,
                 path: obj.path,
@@ -107,6 +111,26 @@ class World
         end
 
         return _out
+    end
+
+
+    def iso_x(x, y, screen_offset)
+        return ((x - y) * @width_half) + screen_offset.x
+    end
+
+
+    def iso_y(x, y, screen_offset)
+        return ((x + y) * @height_half) + screen_offset.y
+    end
+
+
+    def screen_to_iso(pos)
+        root = [
+            ((((pos.x - @width_half) / @width_half) + (pos.y / @height_half)) / 2).floor(), 
+            (((pos.y / @height_half) - ((pos.x - @width_half) / @width_half)) / 2).floor()
+        ]
+
+        return root
     end
 
 

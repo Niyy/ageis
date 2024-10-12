@@ -48,8 +48,8 @@ class DR_Object
 
     def copy()
         return DRObject.new(
-            x: @tx,
-            y: @ty,
+            x: @x,
+            y: @y,
             z: @z,
             w: @w,
             h: @h,

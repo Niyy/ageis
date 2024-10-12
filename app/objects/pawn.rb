@@ -331,4 +331,20 @@ class Pawn < DR_Object
 
         return range
     end
+
+
+    def copy()
+        return Pawn.new(
+            x: @x,
+            y: @y,
+            z: @z,
+            w: @w,
+            h: @h,
+            g: @g,
+            b: @b,
+            tick: @tick,
+            primitive_marker: @primitive_marker,
+            type: @type
+        )
+    end
 end
