@@ -155,20 +155,43 @@ class Pawn < DR_Object
 
 
     def move(tick_count, world)
-        return if(@path_cur.empty?() || @path_end.nil?() || 
-            (tick_count - @path_start) % @speed != 0
-        )
-        puts "moving hehe"
+        if(@next_step && @next_step != [@x, @y] && tick_count % @speed == 0)
+            dir = [
+                @next_step.x - @x,
+                @next_step.y - @y
+            ]
 
-        next_step = @path_cur.pop()
+            dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
+            dir.y = (dir.y / dir.y.abs()) if(dir.y != 0)
+            
+            @x += dir.x
+            @y += dir.y
+        end
 
-        dir = [
-            next_step.x - @x,
-            next_step.y - @y
-        ]
+        return if(@path_cur.empty?() || @path_end.nil?() || @next_step != [@x, @y])
 
-        dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
-        dir.y = (dir.y / dir.y.abs()) if(dir.y != 0)
+        prior_x = @x
+        prior_y = @y
+
+        if(@next_step)
+            @x = @next_step.x
+            @y = @next_step.y
+        end
+
+        puts "prior pos: #{[prior_x, prior_y]}"
+        puts "current pos: #{[@x, @y]}"
+
+        world.update(self, [prior_x, prior_y])
+
+        @next_step = @path_cur.pop()
+
+#        dir = [
+#            next_step.x - @x,
+#            next_step.y - @y
+#        ]
+#
+#        dir.x = (dir.x / dir.x.abs()) if(dir.x != 0)
+#        dir.y = (dir.y / dir.y.abs()) if(dir.y != 0)
         
 #        return if(
 #            fight_blocker(
@@ -185,10 +208,10 @@ class Pawn < DR_Object
 #        return if(can_not_move(tiles, next_step, tick_count, dir))
        
         @idle_ticks = 0
-        prior_x = @x
-        prior_y = @y
-        @x = next_step.x
-        @y = next_step.y
+#        prior_x = @x
+#        prior_y = @y
+#        @x = next_step.x
+#        @y = next_step.y
 
         puts "prior pos: #{[prior_x, prior_y]}"
         puts "current pos: #{[@x, @y]}"
