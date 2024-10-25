@@ -8,7 +8,7 @@ class World
         @width_half = dim / 2
         @height_half = @height / 2
         @bounds = [w, h]
-        @objs = {}
+        @objs = Ordered_Tree.new()
         @tiles = {}
         @nonstatic = {}
         @static = :static
@@ -49,7 +49,7 @@ class World
         @tiles[[x, y]][obj.type] = {} if(!@tiles[[x, y]][obj.type])
         @tiles[[x, y]][obj.type][obj.uid] = obj
         @nonstatic[obj.uid] = obj if(!obj.static)
-        @objs[obj.uid] = obj
+        @objs << obj
     end
 
 

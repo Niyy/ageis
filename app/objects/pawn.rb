@@ -7,7 +7,7 @@ class Pawn < DR_Object
         super
         
         @task = nil
-        @speed = 60
+        @speed = 10 
         @faction = argv.faction
 
         # Pathing

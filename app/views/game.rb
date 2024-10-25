@@ -6,7 +6,7 @@ class Game < View
         self.args = args
         puts 'hello my good sir.'
         @screen_offset = [300, 0]
-        @world = World.new(args, @screen_offset, w: 10, h: 10, dim: 64)
+        @world = World.new(args, @screen_offset, w: 10, h: 10, dim: 80)
         @cursor_pos = [0, 0]
 
         pawn = Pawn.new(
@@ -48,8 +48,8 @@ class Game < View
                 x: @cursor_pos.x, 
                 y: @cursor_pos.y, 
                 w: @world.width, 
-                h: @world.height, 
-                path: 'sprites/isometric/black.png',
+                h: 110, 
+                path: 'sprites/isometric/blue-column.png',
                 primitive_marker: :sprite
             ))            
         end

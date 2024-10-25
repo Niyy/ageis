@@ -1,14 +1,16 @@
 class DR_Object
     attr_accessor :z, :w, :h, :r, :g, :b, :a, :primitive_marker, :type,
         :faction, :name, :static
-    attr_reader :uid, :x, :y
+    attr_reader :uid, :x, :y, :z
     attr_sprite
 
 
     def initialize(x: 0, y: 0, z: 0, w: 1, h: 1, r: 0, g: 0, b: 0, path: 'sprites/circle/white.rb', 
         faction: -1, primitive_marker: :solid, type: :dr_object, static: true
     )
-        @z = z
+        @x = 0
+        @y = 0
+        @z = 0
         @w = w
         @h = h
         set_x(x)
@@ -78,13 +80,13 @@ class DR_Object
 
 
     def set_x(val)
-        @tx = val
         @x = val 
+        @z = (@x * @x) + (@y * @y)
     end
 
 
     def set_y(val)
-        @ty = val
         @y = val
+        @z = (@x * @x) + (@y * @y)
     end
 end

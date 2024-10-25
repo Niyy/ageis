@@ -1,5 +1,7 @@
 require 'app/globals.rb'
 require 'app/min_tree.rb'
+require 'app/max_tree.rb'
+require 'app/ordered_tree.rb'
 require 'app/objects/dr_object.rb'
 require 'app/objects/pawn.rb'
 require 'app/objects/structure.rb'
