@@ -5,7 +5,7 @@ class Game < View
     def initialize(args)
         self.args = args
         puts 'hello my good sir.'
-        @screen_offset = [300, 0]
+        @screen_offset = [0, 0]
         @world = World.new(args, @screen_offset, w: 10, h: 10, dim: 80)
         @cursor_pos = [0, 0]
 
@@ -34,8 +34,8 @@ class Game < View
 
     def input()
         mouse_pos = [inputs.mouse.x, inputs.mouse.y]
-        mouse_pos.x -= @screen_offset.x
-        mouse_pos.y -= @screen_offset.y
+        mouse_pos.x += @screen_offset.x
+        mouse_pos.y += @screen_offset.y
         @cursor_pos = @world.screen_to_iso(mouse_pos)
 
         if(inputs.mouse.click)
@@ -53,6 +53,10 @@ class Game < View
                 primitive_marker: :sprite
             ))            
         end
+
+        @screen_offset.x += 10 if(inputs.keyboard.key_down.d)
+        @screen_offset.x -= 10 if(inputs.keyboard.key_down.a && 
+                                  @screen_offset.x - 10 > 0)
     end
 
 
