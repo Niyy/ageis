@@ -22,18 +22,14 @@ class World
         args.outputs[@static].w = @world_size.x 
         args.outputs[@static].h = @world_size.y 
 
-        w.times() do |x|
-            h.times() do |y|
-                @tiles[[x, y]] = {}
-                args.outputs[@static].primitives << {
-                    x: iso_x(x, y), 
-                    y: iso_y(x, y), 
-                    w: @width, 
-                    h: @height, 
-                    path: 'sprites/isometric/blue.png'
-                }.sprite!
-            end
-        end
+        @world_generation = {
+            gen_list: [[0, 0]],
+            bounding_box: {x: 0, y: 0, w: @world_size.x, h: @world_size.y}
+        }
+    end
+
+
+    def world_generate_step()
     end
 
 
